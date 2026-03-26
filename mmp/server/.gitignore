@@ -1,0 +1,4 @@
+node_modules/
+dist/
+mmp.db
+*.db-journal
