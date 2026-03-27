@@ -16,6 +16,7 @@ RUN cd app && npm ci
 # Copy all source
 COPY server/ ./server/
 COPY app/ ./app/
+COPY spec/ ./spec/
 
 # Build the MCP App inbox UI
 RUN cd app && npm run build
