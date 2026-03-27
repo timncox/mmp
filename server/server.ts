@@ -202,7 +202,7 @@ app.delete("/mcp", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-const PORT = parseInt(process.env.PORT || "3001", 10);
+const PORT = parseInt(process.env.PORT || "3777", 10);
 
 app.listen(PORT, () => {
   console.log(`MMP server listening on http://localhost:${PORT}`);
