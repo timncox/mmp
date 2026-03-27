@@ -91,26 +91,56 @@ app.get("/health", (_req, res) => {
 });
 
 // Landing page
-app.get("/", (_req, res) => {
-  res.type("html").send(`<!DOCTYPE html>
+app.get("/", async (_req, res) => {
+  try {
+    const html = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("./public/index.html", import.meta.url), "utf-8")
+    );
+    res.type("html").send(html);
+  } catch {
+    res.type("html").send("<h1>MMP — Model Messaging Protocol</h1><p>Server is running.</p>");
+  }
+});
+
+// Protocol spec (rendered from markdown)
+app.get("/spec", async (_req, res) => {
+  try {
+    const fs = await import("node:fs/promises");
+    const md = await fs.readFile(new URL("../spec/MMP-SPEC.md", import.meta.url), "utf-8");
+    // Simple markdown-to-HTML: wrap in a styled page
+    const escaped = md
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    res.type("html").send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MMP — Model Messaging Protocol</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 80px auto; padding: 0 20px; color: #333; }
-    h1 { font-size: 1.5rem; }
-    p { line-height: 1.6; }
-    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMP Specification — Model Messaging Protocol</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #09090b; color: #e4e4e7; max-width: 800px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+  pre { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 16px; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 13px; color: #a1a1aa; white-space: pre-wrap; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; background: #18181b; padding: 2px 6px; border-radius: 4px; }
+  a { color: #7dd3fc; }
+  h1, h2, h3, h4 { color: #fafafa; margin-top: 2em; margin-bottom: 0.5em; }
+  h1 { font-size: 28px; border-bottom: 1px solid #27272a; padding-bottom: 12px; }
+  h2 { font-size: 22px; border-bottom: 1px solid #18181b; padding-bottom: 8px; }
+  h3 { font-size: 17px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+  th, td { border: 1px solid #27272a; padding: 8px 12px; text-align: left; font-size: 13px; }
+  th { background: #18181b; font-weight: 600; }
+  .back { display: inline-block; margin-bottom: 24px; color: #7dd3fc; font-size: 14px; }
+</style>
 </head>
 <body>
-  <h1>MMP Server</h1>
-  <p>Model Messaging Protocol reference implementation.</p>
-  <p>Connect your MCP client to <code>POST /mcp</code> with a valid token.</p>
+<a href="/" class="back">&larr; Back to mmp.chat</a>
+<pre>${escaped}</pre>
 </body>
 </html>`);
+  } catch {
+    res.status(404).send("Spec not found.");
+  }
 });
 
 // Invite landing page
@@ -124,23 +154,32 @@ app.get("/invite/:code", (req, res) => {
       ? "This invite has already been claimed."
       : "This invite is valid. Use it in your MCP client to register.";
 
+  const inviterHandle = invite ? db.getUserById(invite.created_by)?.handle : null;
   res.type("html").send(`<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MMP Invite</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 80px auto; padding: 0 20px; color: #333; }
-    h1 { font-size: 1.5rem; }
-    p { line-height: 1.6; }
-    code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMP Invite${inviterHandle ? ` from @${inviterHandle}` : ""}</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #09090b; color: #e4e4e7; max-width: 520px; margin: 80px auto; padding: 0 24px; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  p { line-height: 1.6; color: #a1a1aa; margin-bottom: 12px; }
+  code { background: #18181b; border: 1px solid #27272a; padding: 2px 8px; border-radius: 4px; font-family: ui-monospace, monospace; color: #7dd3fc; }
+  ol { color: #a1a1aa; line-height: 2; padding-left: 20px; }
+  .badge { display: inline-block; font-size: 12px; color: #a1a1aa; border: 1px solid #27272a; border-radius: 20px; padding: 4px 14px; margin-bottom: 24px; }
+</style>
 </head>
 <body>
-  <h1>MMP Invite</h1>
-  <p>${status}</p>
-  <p>Invite code: <code>${code}</code></p>
+<div class="badge">Model Messaging Protocol</div>
+<h1>${inviterHandle ? `@${inviterHandle} invited you to MMP!` : "You've been invited to MMP!"}</h1>
+<p>${status}</p>
+<ol>
+<li>Add this MCP server to your AI: <code>mmp.chat/mcp</code></li>
+<li>Say <em>"Register as @yourname"</em></li>
+<li>${inviterHandle ? `You'll be able to message @${inviterHandle} right away.` : "Start messaging!"}</li>
+</ol>
+<p style="font-size:13px;color:#52525b;margin-top:24px;">Works with Claude, ChatGPT, Copilot, Goose, and any MCP client.</p>
 </body>
 </html>`);
 });
