@@ -6,6 +6,26 @@ import { createDb, type Db } from "./lib/db.js";
 import { extractToken, authenticateUser } from "./lib/auth.js";
 import type { User } from "./lib/types.js";
 
+// Tool registrations
+import { registerRegisterTool } from "./tools/register.js";
+import { registerRecoverTool } from "./tools/recover.js";
+import { registerSendTool } from "./tools/send.js";
+import { registerReplyTool } from "./tools/reply.js";
+import { registerInboxTool } from "./tools/inbox.js";
+import { registerThreadsTool } from "./tools/threads.js";
+import { registerDigestTool } from "./tools/digest.js";
+import { registerContactsTool } from "./tools/contacts.js";
+import { registerLookupTool } from "./tools/lookup.js";
+import { registerSearchUsersTool } from "./tools/search-users.js";
+import { registerBlockTool } from "./tools/block.js";
+import { registerInviteTool } from "./tools/invite.js";
+import { registerProfileTool } from "./tools/profile.js";
+import { registerOpenInboxTool } from "./tools/open-inbox.js";
+import { registerMarkReadTool } from "./tools/mark-read.js";
+import { registerArchiveTool } from "./tools/archive.js";
+import { registerStarTool } from "./tools/star.js";
+import { registerMuteTool } from "./tools/mute.js";
+
 // ---------------------------------------------------------------------------
 // Database
 // ---------------------------------------------------------------------------
@@ -21,8 +41,27 @@ export function createMcpServer(getUser: () => User | null): McpServer {
     { capabilities: { tools: {} } },
   );
 
-  // Tools will be registered by tool modules in Tasks 6-12.
-  // They will call mcp.tool(...) using getUser() for auth context.
+  // Unauthenticated tools
+  registerRegisterTool(mcp, db);
+  registerRecoverTool(mcp, db);
+
+  // Authenticated tools
+  registerSendTool(mcp, db, getUser);
+  registerReplyTool(mcp, db, getUser);
+  registerInboxTool(mcp, db, getUser);
+  registerThreadsTool(mcp, db, getUser);
+  registerDigestTool(mcp, db, getUser);
+  registerContactsTool(mcp, db, getUser);
+  registerLookupTool(mcp, db, getUser);
+  registerSearchUsersTool(mcp, db, getUser);
+  registerBlockTool(mcp, db, getUser);
+  registerInviteTool(mcp, db, getUser);
+  registerProfileTool(mcp, db, getUser);
+  registerOpenInboxTool(mcp, db, getUser);
+  registerMarkReadTool(mcp, db, getUser);
+  registerArchiveTool(mcp, db, getUser);
+  registerStarTool(mcp, db, getUser);
+  registerMuteTool(mcp, db, getUser);
 
   return mcp;
 }
