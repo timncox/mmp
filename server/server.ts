@@ -98,6 +98,24 @@ app.use(express.json({
   },
 }));
 
+// Admin: reset recovery code (requires admin secret)
+app.post("/admin/reset-recovery", (req, res) => {
+  const secret = req.headers["x-admin-secret"] as string;
+  if (secret !== process.env.MMP_ADMIN_SECRET) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const { handle } = req.body;
+  if (!handle) { res.status(400).json({ error: "Missing handle" }); return; }
+  const user = db.getUserByHandle(handle);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const { generateRecoveryCode, hashToken } = require("./lib/crypto.js") as typeof import("./lib/crypto.js");
+  const newCode = generateRecoveryCode();
+  db.updateUser(user.id, { recovery_code_hash: hashToken(newCode) });
+  res.json({ handle, recovery_code: newCode });
+});
+
 // Federation routes
 mountFederationRoutes(app, db, SERVER_URL);
 
