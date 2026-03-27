@@ -45,15 +45,18 @@ export const db: Db = createDb(dbPath);
 // ---------------------------------------------------------------------------
 const SERVER_URL = process.env.MMP_SERVER_URL || `http://localhost:${parseInt(process.env.PORT || "3777", 10)}`;
 
-export function createMcpServer(getUser: () => User | null): McpServer {
+export function createMcpServer(
+  getUser: () => User | null,
+  setUser?: (u: User) => void,
+): McpServer {
   const mcp = new McpServer(
     { name: "MMP-Messaging", version: "1.0.0" },
     { capabilities: { tools: {} } },
   );
 
-  // Unauthenticated tools
-  registerRegisterTool(mcp, db);
-  registerRecoverTool(mcp, db);
+  // Unauthenticated tools (with session upgrade on register/recover)
+  registerRegisterTool(mcp, db, setUser);
+  registerRecoverTool(mcp, db, setUser);
 
   // Authenticated tools
   registerSendTool(mcp, db, getUser, SERVER_URL);
@@ -210,35 +213,47 @@ app.get("/invite/:code", (req, res) => {
 
 // MCP endpoint — per-request transport with auth
 const transports = new Map<string, StreamableHTTPServerTransport>();
+// Mutable auth state per session — register/recover can upgrade
+const sessionAuth = new Map<string, { user: User | null }>();
 
 app.post("/mcp", async (req, res) => {
   const token = extractToken(req);
   const user = authenticateUser(token, db);
 
-  const getUser = (): User | null => user;
-
   // Check for existing session
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
   if (sessionId && transports.has(sessionId)) {
+    // Re-check token auth on each request (in case URL changed)
+    const auth = sessionAuth.get(sessionId);
+    if (auth && user && !auth.user) {
+      auth.user = user;
+    }
     const transport = transports.get(sessionId)!;
     await transport.handleRequest(req, res, req.body);
     return;
   }
+
+  // New session — create mutable auth state
+  const auth = { user };
+  const getUser = (): User | null => auth.user;
+  const setUser = (u: User): void => { auth.user = u; };
 
   // New session — create transport and MCP server
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sid) => {
       transports.set(sid, transport);
+      sessionAuth.set(sid, auth);
     },
   });
 
-  const mcp = createMcpServer(getUser);
+  const mcp = createMcpServer(getUser, setUser);
   await mcp.connect(transport);
 
   transport.onclose = () => {
     if (transport.sessionId) {
       transports.delete(transport.sessionId);
+      sessionAuth.delete(transport.sessionId);
     }
   };
 

@@ -11,7 +11,11 @@ import {
 
 const HANDLE_RE = /^[a-z][a-z0-9_]{2,19}$/;
 
-export function registerRegisterTool(server: McpServer, db: Db): void {
+export function registerRegisterTool(
+  server: McpServer,
+  db: Db,
+  setUser?: (u: import("../lib/types.js").User) => void,
+): void {
   server.tool(
     "mmp-register",
     "Register a new MMP account. Returns a token, recovery code, and setup instructions. " +
@@ -58,12 +62,13 @@ export function registerRegisterTool(server: McpServer, db: Db): void {
       const recoveryCode = generateRecoveryCode();
       const now = Math.floor(Date.now() / 1000);
 
-      db.createUser({
-        id: uuidv4(),
+      const userId = uuidv4();
+      const newUser = {
+        id: userId,
         handle,
         display_name: handle,
         bio: "",
-        privacy: "public",
+        privacy: "public" as const,
         status: "",
         public_key: keyPair.publicKey,
         private_key: keyPair.privateKey,
@@ -72,7 +77,12 @@ export function registerRegisterTool(server: McpServer, db: Db): void {
         recovery_code_hash: hashToken(recoveryCode),
         created_at: now,
         updated_at: now,
-      });
+      };
+
+      db.createUser(newUser);
+
+      // Upgrade this session — all tools work immediately, no reconnect needed
+      if (setUser) setUser(newUser);
 
       const serverUrl = `https://mmp.chat/mcp?token=${token}`;
 
@@ -88,10 +98,10 @@ export function registerRegisterTool(server: McpServer, db: Db): void {
               public_key: keyPair.publicKey,
               setup_instructions: [
                 "1. SAVE the token and recovery_code to your persistent memory NOW.",
-                `2. UPDATE your MCP server URL to: ${serverUrl}`,
-                "3. In Claude Desktop: Settings → MCP Servers → edit MMP → replace the URL → restart Claude Desktop.",
-                "4. In Claude Code CLI: run `claude mcp remove mmp` then `claude mcp add --transport http mmp \"" + serverUrl + "\"`",
-                "5. After reconnecting with the token URL, all tools will work. Without it, you'll get 'Authentication required' errors.",
+                "2. You're authenticated — all tools work in this session immediately.",
+                `3. For FUTURE sessions, update your MCP server URL to include the token: ${serverUrl}`,
+                "4. In Claude Desktop: Settings → MCP Servers → edit MMP → update the URL → restart.",
+                "5. In Claude Code CLI: `claude mcp remove mmp` then `claude mcp add --transport http mmp \"" + serverUrl + "\"`",
               ],
             }),
           },
