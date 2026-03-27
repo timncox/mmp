@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createDb, type Db } from "./lib/db.js";
 import { extractToken, authenticateUser } from "./lib/auth.js";
-import { generateRecoveryCode, hashToken } from "./lib/crypto.js";
+import { generateRecoveryCode, hashToken, decryptMessage } from "./lib/crypto.js";
 import type { User } from "./lib/types.js";
 
 // Tool registrations
@@ -98,6 +98,90 @@ app.use(express.json({
     req.rawBody = buf;
   },
 }));
+
+// REST API: digest endpoint for agents/automation
+app.get("/api/digest", (req, res) => {
+  const token = req.query.token as string;
+  if (!token) { res.status(401).json({ error: "Missing token parameter" }); return; }
+
+  const user = authenticateUser(token, db);
+  if (!user) { res.status(401).json({ error: "Invalid token" }); return; }
+
+  const period = (req.query.period as string) || "24h";
+  const now = Math.floor(Date.now() / 1000);
+  let sinceTs: number;
+
+  switch (period) {
+    case "today": {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      sinceTs = Math.floor(todayStart.getTime() / 1000);
+      break;
+    }
+    case "week": sinceTs = now - 7 * 86400; break;
+    case "1h": sinceTs = now - 3600; break;
+    default: sinceTs = now - 86400; break;
+  }
+
+  const threads = db.getThreadsForUser(user.id);
+  const userCache = new Map<string, User>();
+  userCache.set(user.id, user);
+  const getHandle = (userId: string): string => {
+    let u = userCache.get(userId);
+    if (!u) { u = db.getUserById(userId); if (u) userCache.set(userId, u); }
+    return u?.handle ?? "unknown";
+  };
+
+  let totalMessages = 0;
+  let unreadCount = 0;
+  let urgentCount = 0;
+  const threadDigests: any[] = [];
+
+  for (const thread of threads) {
+    const messages = db.getMessagesForThread(thread.id, 500);
+    const periodMessages = messages.filter((m) => m.created_at >= sinceTs);
+    if (periodMessages.length === 0) continue;
+
+    const member = db.getThreadMember(thread.id, user.id);
+    const threadUnread = periodMessages.filter(
+      (m) => member && m.created_at > member.last_read_at && m.from_user_id !== user.id,
+    ).length;
+
+    const decrypted = periodMessages.map((msg) => {
+      let body: string | null;
+      if (msg.encryption_mode === "server_assisted") {
+        if (msg.to_user_id === user.id) {
+          body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, user.private_key);
+        } else {
+          const recipient = db.getUserById(msg.to_user_id);
+          body = recipient ? decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, recipient.private_key) : null;
+        }
+      } else {
+        body = "[E2E encrypted]";
+      }
+      if (msg.priority === "urgent") urgentCount++;
+      return {
+        from: getHandle(msg.from_user_id),
+        body,
+        priority: msg.priority,
+        time: new Date(msg.created_at * 1000).toISOString(),
+      };
+    });
+
+    totalMessages += periodMessages.length;
+    unreadCount += threadUnread;
+
+    threadDigests.push({
+      thread_id: thread.id,
+      type: thread.type,
+      name: thread.type === "group" ? thread.name : `@${thread.other_handle ?? "unknown"}`,
+      unread: threadUnread,
+      messages: decrypted,
+    });
+  }
+
+  res.json({ period, stats: { total_messages: totalMessages, unread: unreadCount, urgent: urgentCount }, threads: threadDigests });
+});
 
 // Admin: reset recovery code (requires admin secret)
 app.post("/admin/reset-recovery", (req, res) => {
