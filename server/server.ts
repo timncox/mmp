@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createDb, type Db } from "./lib/db.js";
 import { extractToken, authenticateUser } from "./lib/auth.js";
+import { generateRecoveryCode, hashToken } from "./lib/crypto.js";
 import type { User } from "./lib/types.js";
 
 // Tool registrations
@@ -110,7 +111,6 @@ app.post("/admin/reset-recovery", (req, res) => {
   const user = db.getUserByHandle(handle);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const { generateRecoveryCode, hashToken } = require("./lib/crypto.js") as typeof import("./lib/crypto.js");
   const newCode = generateRecoveryCode();
   db.updateUser(user.id, { recovery_code_hash: hashToken(newCode) });
   res.json({ handle, recovery_code: newCode });
