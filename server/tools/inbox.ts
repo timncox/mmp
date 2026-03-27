@@ -56,12 +56,19 @@ export function registerInboxTool(
 
         let body: string | null;
         if (msg.encryption_mode === "server_assisted") {
-          body = decryptMessage(
-            msg.ciphertext,
-            msg.nonce,
-            msg.sender_pub_key,
-            user.private_key,
-          );
+          if (msg.to_user_id === user.id) {
+            body = decryptMessage(
+              msg.ciphertext,
+              msg.nonce,
+              msg.sender_pub_key,
+              user.private_key,
+            );
+          } else {
+            const recipient = db.getUserById(msg.to_user_id);
+            body = recipient
+              ? decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, recipient.private_key)
+              : null;
+          }
         } else {
           body = "[E2E encrypted — open in MCP App inbox to read]";
         }

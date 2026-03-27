@@ -52,12 +52,26 @@ export function registerThreadTool(
         let body: string | null = null;
 
         if (msg.encryption_mode === "server_assisted") {
-          body = decryptMessage(
-            msg.ciphertext,
-            msg.nonce,
-            msg.sender_pub_key,
-            user.private_key,
-          );
+          if (msg.to_user_id === user.id) {
+            // User is recipient — decrypt with sender's pubkey + our privkey
+            body = decryptMessage(
+              msg.ciphertext,
+              msg.nonce,
+              msg.sender_pub_key,
+              user.private_key,
+            );
+          } else {
+            // User is sender — decrypt with recipient's privkey + sender's pubkey
+            const recipient = db.getUserById(msg.to_user_id);
+            if (recipient) {
+              body = decryptMessage(
+                msg.ciphertext,
+                msg.nonce,
+                msg.sender_pub_key,
+                recipient.private_key,
+              );
+            }
+          }
         }
 
         return {

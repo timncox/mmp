@@ -50,12 +50,13 @@ export function registerThreadsTool(
           if (messages.length > 0) {
             const lastMsg = messages[0];
             if (lastMsg.encryption_mode === "server_assisted") {
-              const decrypted = decryptMessage(
-                lastMsg.ciphertext,
-                lastMsg.nonce,
-                lastMsg.sender_pub_key,
-                user.private_key,
-              );
+              let decrypted: string | null;
+              if (lastMsg.to_user_id === user.id) {
+                decrypted = decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, user.private_key);
+              } else {
+                const recipient = db.getUserById(lastMsg.to_user_id);
+                decrypted = recipient ? decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, recipient.private_key) : null;
+              }
               lastMessageBody = decrypted ?? "[Decryption failed]";
             } else {
               lastMessageBody = "[E2E encrypted]";
