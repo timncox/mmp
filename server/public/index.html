@@ -322,12 +322,27 @@
     <div class="feature">
       <div class="feature-icon">&#128274;</div>
       <h3>End-to-end encrypted</h3>
-      <p>Messages are encrypted with NaCl box (x25519). The server never sees your plaintext. Your AI reads it — nobody else.</p>
+      <p>Messages encrypted with NaCl box (X25519 + XSalsa20-Poly1305). Server never sees plaintext. Your AI reads it — nobody else.</p>
     </div>
     <div class="feature">
       <div class="feature-icon">&#127760;</div>
-      <h3>Works everywhere</h3>
-      <p>Claude, ChatGPT, Copilot, Goose, Cursor — any AI that supports MCP. One protocol, every client.</p>
+      <h3>Federation</h3>
+      <p>Message anyone at @user@their-server.com. Servers discover each other automatically and relay messages with Ed25519 signed requests.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128101;</div>
+      <h3>Group messaging</h3>
+      <p>Create groups, add members, set roles. Messages are fan-out encrypted — one copy per recipient, each with their own key.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128206;</div>
+      <h3>File attachments</h3>
+      <p>Send files with any message. Attachments are encrypted per-recipient, same as message bodies. Works in DMs, groups, and federation.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">&#128260;</div>
+      <h3>Forward secrecy</h3>
+      <p>Rotate your encryption keys anytime. Old keys are preserved for history, new messages use fresh keys. Limits exposure if a key is compromised.</p>
     </div>
     <div class="feature">
       <div class="feature-icon">&#129302;</div>
@@ -338,11 +353,6 @@
       <div class="feature-icon">&#128236;</div>
       <h3>Interactive inbox</h3>
       <p>On supported clients, a rich inbox UI renders right inside your conversation. Threads, compose, contacts — no app needed.</p>
-    </div>
-    <div class="feature">
-      <div class="feature-icon">&#128587;</div>
-      <h3>Invite anyone</h3>
-      <p>"Invite @bob" generates a shareable link. They add the MCP server, register, and your pending message gets delivered.</p>
     </div>
     <div class="feature">
       <div class="feature-icon">&#128268;</div>
@@ -376,20 +386,18 @@
     </div>
     <div class="msg">
       <div class="msg-label msg-user">You</div>
-      <div>Give me a digest of today's messages</div>
+      <div>Send @bob@other-server.com the project brief with the PDF attached</div>
     </div>
     <div class="msg">
       <div class="msg-label msg-ai">Your AI</div>
-      <div>Today: 5 messages across 3 threads.<br>
-        &#128994; All caught up — 1 reply sent, 2 FYI threads archived.
-      </div>
+      <div>&#9989; Sent to @bob@other-server.com via federation. 1 attachment (brief.pdf, 2.4 MB).</div>
     </div>
   </div>
 </div>
 
 <div class="protocol">
   <h2>For developers</h2>
-  <p>MMP is an open extension to the Model Context Protocol. The spec defines 22 MCP tools, a threading model, hybrid encryption, and an MCP App for interactive inbox UI. Run your own server or build on the protocol.</p>
+  <p>MMP is an open extension to the Model Context Protocol. The spec defines 25 MCP tools, group messaging, file attachments, federation between servers, forward secrecy with key rotation, and an MCP App for interactive inbox UI. Run your own server or build on the protocol.</p>
   <div class="protocol-links">
     <a href="/spec" class="proto-btn primary">Read the Spec</a>
     <a href="https://github.com/timncox/mmp" class="proto-btn">GitHub</a>
@@ -397,7 +405,7 @@
 </div>
 
 <div class="footer">
-  MMP — Model Messaging Protocol &middot; Open source &middot; End-to-end encrypted
+  MMP — Model Messaging Protocol &middot; Open source &middot; End-to-end encrypted &middot; Federated
 </div>
 
 </body>
