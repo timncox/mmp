@@ -11,7 +11,7 @@ export function registerInboxTool(
 ): void {
   server.tool(
     "mmp-inbox",
-    "Get your MMP (MCP Messaging Protocol) inbox — person-to-person messages sent via MMP handles (@username), NOT email or Gmail. Use this when the user says 'check my MMP messages' or 'check my messages' in the context of MMP.",
+    "Get your MMP (Model Messaging Protocol) inbox — person-to-person messages sent via MMP handles (@username), NOT email or Gmail. Use this when the user says 'check my MMP messages' or 'check my messages' in the context of MMP.",
     {
       since: z.string().optional().describe("ISO timestamp — only return messages after this time"),
       unread_only: z.boolean().optional().default(false).describe("If true, only return unread messages"),

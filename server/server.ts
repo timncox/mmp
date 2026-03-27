@@ -97,7 +97,7 @@ app.get("/", (_req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MMP — MCP Messaging Protocol</title>
+  <title>MMP — Model Messaging Protocol</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 600px; margin: 80px auto; padding: 0 20px; color: #333; }
     h1 { font-size: 1.5rem; }
@@ -107,7 +107,7 @@ app.get("/", (_req, res) => {
 </head>
 <body>
   <h1>MMP Server</h1>
-  <p>MCP Messaging Protocol reference implementation.</p>
+  <p>Model Messaging Protocol reference implementation.</p>
   <p>Connect your MCP client to <code>POST /mcp</code> with a valid token.</p>
 </body>
 </html>`);

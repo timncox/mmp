@@ -1,4 +1,4 @@
-# MMP -- MCP Messaging Protocol Specification
+# MMP -- Model Messaging Protocol Specification
 
 Version: 0.1.0 (Draft)
 Date: 2026-03-26

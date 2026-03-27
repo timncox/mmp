@@ -12,7 +12,7 @@ export function registerSendTool(
 ): void {
   server.tool(
     "mmp-send",
-    "Send an MMP message to another user by their @handle. This is the MCP Messaging Protocol — NOT email, NOT Gmail, NOT SMS. Use when the user says 'send @someone a message' or 'tell @someone something' via MMP.",
+    "Send an MMP message to another user by their @handle. This is the Model Messaging Protocol — NOT email, NOT Gmail, NOT SMS. Use when the user says 'send @someone a message' or 'tell @someone something' via MMP.",
     {
       to: z.string().describe("Handle of the recipient"),
       body: z.string().optional().describe("Plaintext message body (server will encrypt)"),

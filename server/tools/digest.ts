@@ -11,7 +11,7 @@ export function registerDigestTool(
 ): void {
   server.tool(
     "mmp-digest",
-    "Get an MMP message digest — a summary of all MMP (MCP Messaging Protocol) threads and messages for a time period. NOT email or Gmail. Use for 'give me a digest of my MMP messages' or 'summarize my MMP messages'.",
+    "Get an MMP message digest — a summary of all MMP (Model Messaging Protocol) threads and messages for a time period. NOT email or Gmail. Use for 'give me a digest of my MMP messages' or 'summarize my MMP messages'.",
     {
       period: z
         .enum(["today", "24h", "week"])

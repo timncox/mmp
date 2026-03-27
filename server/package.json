@@ -2,7 +2,7 @@
   "name": "mmp-server",
   "version": "1.0.0",
   "type": "module",
-  "description": "MMP — MCP Messaging Protocol reference implementation",
+  "description": "MMP — Model Messaging Protocol reference implementation",
   "scripts": {
     "build": "tsc",
     "start": "npx tsx server.ts",
