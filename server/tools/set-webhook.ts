@@ -68,6 +68,40 @@ export function registerSetWebhookTool(
         };
       }
 
+      // SSRF protection — block internal/localhost URLs
+      try {
+        const parsed = new URL(url);
+        const host = parsed.hostname.toLowerCase();
+        if (
+          host === "localhost" ||
+          host === "127.0.0.1" ||
+          host === "0.0.0.0" ||
+          host === "::1" ||
+          host.endsWith(".local") ||
+          host.startsWith("10.") ||
+          host.startsWith("192.168.") ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+          host === "metadata.google.internal" ||
+          host === "169.254.169.254"
+          ) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Webhook URL must be a public HTTPS endpoint. Internal/localhost URLs are not allowed." }) }],
+            isError: true,
+          };
+        }
+        if (parsed.protocol !== "https:") {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "Webhook URL must use HTTPS." }) }],
+            isError: true,
+          };
+        }
+      } catch {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Invalid URL." }) }],
+          isError: true,
+        };
+      }
+
       const secret = randomBytes(32).toString("hex");
       const now = Math.floor(Date.now() / 1000);
 

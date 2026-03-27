@@ -77,6 +77,7 @@ export function registerThreadsTool(
           type: t.type,
           last_message_body: lastMessageBody,
           last_message_at: t.last_message_at,
+          last_message_at_iso: new Date(t.last_message_at * 1000).toISOString(),
           unread_count: t.unread_count,
           member_state: t.member_state,
         };

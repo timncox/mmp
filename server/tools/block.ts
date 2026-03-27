@@ -10,11 +10,12 @@ export function registerBlockTool(
 ): void {
   server.tool(
     "mmp-block",
-    "Block a user. Blocked users cannot send you messages.",
+    "Block or unblock a user. Blocked users cannot send you messages. Use action 'unblock' to remove a block.",
     {
-      handle: z.string().describe("Handle of the user to block"),
+      handle: z.string().describe("Handle of the user to block/unblock"),
+      action: z.enum(["block", "unblock"]).optional().default("block").describe("'block' to block, 'unblock' to remove block"),
     },
-    async ({ handle }) => {
+    async ({ handle, action }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -38,18 +39,16 @@ export function registerBlockTool(
         };
       }
 
-      db.addBlock({ user_id: user.id, blocked_id: target.id });
+      if (action === "unblock") {
+        db.removeBlock(user.id, target.id);
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ unblocked: handle }) }],
+        };
+      }
 
+      db.addBlock({ user_id: user.id, blocked_id: target.id });
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              blocked: handle,
-              message: `${handle} has been blocked.`,
-            }),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify({ blocked: handle }) }],
       };
     },
   );

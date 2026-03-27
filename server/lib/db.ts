@@ -446,6 +446,7 @@ export function createDb(path: string): Db {
       SELECT t.* FROM threads t
       JOIN thread_members tm1 ON tm1.thread_id = t.id AND tm1.user_id = ?
       JOIN thread_members tm2 ON tm2.thread_id = t.id AND tm2.user_id = ?
+      WHERE t.type = 'dm'
       LIMIT 1
     `),
 

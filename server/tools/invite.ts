@@ -34,7 +34,7 @@ export function registerInviteTool(
 
       const code = generateInviteCode();
       const now = Math.floor(Date.now() / 1000);
-      const host = process.env.MMP_HOST || "http://localhost:3001";
+      const host = process.env.MMP_SERVER_URL || "http://localhost:3777";
 
       db.createInvite({
         code,

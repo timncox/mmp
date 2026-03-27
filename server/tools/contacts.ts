@@ -96,4 +96,36 @@ export function registerContactsTool(
       };
     },
   );
+
+  // Remove contact
+  server.tool(
+    "mmp-remove_contact",
+    "Remove a user from your contacts list.",
+    {
+      handle: z.string().describe("Handle of the contact to remove"),
+    },
+    async ({ handle }) => {
+      const user = getUser();
+      if (!user) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Authentication required." }) }],
+          isError: true,
+        };
+      }
+
+      const contactUser = db.getUserByHandle(handle);
+      if (!contactUser) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `User '${handle}' not found.` }) }],
+          isError: true,
+        };
+      }
+
+      db.removeContact(user.id, contactUser.id);
+
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ removed: handle }) }],
+      };
+    },
+  );
 }

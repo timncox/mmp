@@ -96,6 +96,7 @@ export function registerInboxTool(
           reply_to: msg.reply_to,
           attachments: attachmentInfo,
           created_at: msg.created_at,
+          created_at_iso: new Date(msg.created_at * 1000).toISOString(),
         } as any);
       }
 
