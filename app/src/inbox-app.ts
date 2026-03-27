@@ -122,17 +122,11 @@ async function pollUnread(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Initialization
+// Helpers
 // ---------------------------------------------------------------------------
-async function init(): Promise<void> {
-  try {
-    await app.connect();
-  } catch {
-    // Connection may fail if not in an MCP App host — render anyway
-  }
 
-  // Determine initial view: check if already authenticated via server
-  let authenticated = false;
+/** Try calling mmp-whoami via the MCP connection.  Returns the handle or null. */
+async function tryWhoami(): Promise<string | null> {
   try {
     const whoami = await app.callServerTool({
       name: "mmp-whoami",
@@ -147,18 +141,52 @@ async function init(): Promise<void> {
         try {
           const data = JSON.parse(textItem.text);
           if (data.handle) {
-            authenticated = true;
-            localStorage.setItem("mmp_handle", data.handle);
+            return data.handle;
           }
         } catch {
-          // Not JSON = not authenticated
+          // Not JSON — ignore
         }
       }
     }
   } catch {
-    // whoami failed — check localStorage fallback
+    // call failed (connection not ready, server error, etc.)
+  }
+  return null;
+}
+
+/** Small promise-based delay. */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ---------------------------------------------------------------------------
+// Initialization
+// ---------------------------------------------------------------------------
+async function init(): Promise<void> {
+  try {
+    await app.connect();
+  } catch {
+    // Connection may fail if not in an MCP App host — render anyway
   }
 
+  // Determine initial view: check if already authenticated via server.
+  // The MCP connection may not be fully ready on the first attempt, so we
+  // retry once after a short delay before falling back to localStorage.
+  let authenticated = false;
+
+  let handle = await tryWhoami();
+  if (!handle) {
+    // Connection might not be ready yet — wait briefly and retry once
+    await delay(500);
+    handle = await tryWhoami();
+  }
+
+  if (handle) {
+    authenticated = true;
+    localStorage.setItem("mmp_handle", handle);
+  }
+
+  // Fallback: check localStorage for a persisted token + client keys
   if (!authenticated) {
     const token = localStorage.getItem("mmp_token");
     authenticated = !!(token && hasClientKeys());

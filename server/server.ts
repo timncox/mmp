@@ -106,12 +106,9 @@ app.get("/", async (_req, res) => {
 app.get("/spec", async (_req, res) => {
   try {
     const fs = await import("node:fs/promises");
+    const { marked } = await import("marked");
     const md = await fs.readFile(new URL("../spec/MMP-SPEC.md", import.meta.url), "utf-8");
-    // Simple markdown-to-HTML: wrap in a styled page
-    const escaped = md
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    const htmlContent = await marked.parse(md);
     res.type("html").send(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,21 +118,32 @@ app.get("/spec", async (_req, res) => {
 <style>
   body { font-family: system-ui, -apple-system, sans-serif; background: #09090b; color: #e4e4e7; max-width: 800px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
   pre { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 16px; overflow-x: auto; font-family: ui-monospace, monospace; font-size: 13px; color: #a1a1aa; white-space: pre-wrap; }
-  code { font-family: ui-monospace, monospace; font-size: 13px; background: #18181b; padding: 2px 6px; border-radius: 4px; }
+  code { font-family: ui-monospace, monospace; font-size: 13px; background: #18181b; padding: 2px 6px; border-radius: 4px; color: #a1a1aa; }
+  pre code { background: none; padding: 0; border-radius: 0; }
   a { color: #7dd3fc; }
+  a:hover { text-decoration: underline; }
   h1, h2, h3, h4 { color: #fafafa; margin-top: 2em; margin-bottom: 0.5em; }
   h1 { font-size: 28px; border-bottom: 1px solid #27272a; padding-bottom: 12px; }
   h2 { font-size: 22px; border-bottom: 1px solid #18181b; padding-bottom: 8px; }
   h3 { font-size: 17px; }
+  h4 { font-size: 15px; }
+  p { margin: 12px 0; }
+  ul, ol { margin: 12px 0; padding-left: 24px; }
+  li { margin: 4px 0; }
+  blockquote { border-left: 3px solid #3b82f6; margin: 16px 0; padding: 8px 16px; color: #a1a1aa; background: #18181b; border-radius: 0 8px 8px 0; }
   table { border-collapse: collapse; width: 100%; margin: 16px 0; }
   th, td { border: 1px solid #27272a; padding: 8px 12px; text-align: left; font-size: 13px; }
-  th { background: #18181b; font-weight: 600; }
-  .back { display: inline-block; margin-bottom: 24px; color: #7dd3fc; font-size: 14px; }
+  th { background: #18181b; font-weight: 600; color: #fafafa; }
+  td { color: #e4e4e7; }
+  hr { border: none; border-top: 1px solid #27272a; margin: 32px 0; }
+  img { max-width: 100%; }
+  .back { display: inline-block; margin-bottom: 24px; color: #7dd3fc; font-size: 14px; text-decoration: none; }
+  .back:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <a href="/" class="back">&larr; Back to mmp.chat</a>
-<pre>${escaped}</pre>
+${htmlContent}
 </body>
 </html>`);
   } catch {
