@@ -5,7 +5,7 @@ import { generateToken, hashToken } from "../lib/crypto.js";
 
 export function registerRecoverTool(server: McpServer, db: Db): void {
   server.tool(
-    "msg/recover",
+    "msg-recover",
     "Recover access to an MMP account using a recovery code. Issues a new token and invalidates the old one.",
     {
       handle: z.string().describe("The handle of the account to recover"),

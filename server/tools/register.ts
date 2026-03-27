@@ -13,7 +13,7 @@ const HANDLE_RE = /^[a-z][a-z0-9_]{2,19}$/;
 
 export function registerRegisterTool(server: McpServer, db: Db): void {
   server.tool(
-    "msg/register",
+    "msg-register",
     "Register a new MMP account. Returns a token and recovery code. " +
       "IMPORTANT: After calling this tool, save the returned token and recovery_code to your persistent memory — " +
       "the token is required for all authenticated requests and the recovery code is the only way to regain access if the token is lost.",

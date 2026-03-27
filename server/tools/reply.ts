@@ -11,7 +11,7 @@ export function registerReplyTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/reply",
+    "msg-reply",
     "Reply to an existing thread. Supports plaintext (server-assisted encryption) or E2E encrypted payloads.",
     {
       thread_id: z.string().describe("Thread ID to reply in"),

@@ -37,7 +37,7 @@ export function registerOpenInboxTool(
   // Register the app tool
   registerAppTool(
     server,
-    "msg/open_inbox",
+    "msg-open_inbox",
     {
       description:
         "Open the MMP inbox in the MCP App UI. For text-only clients, returns a thread summary.",

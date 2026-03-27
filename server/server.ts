@@ -161,15 +161,13 @@ app.post("/mcp", async (req, res) => {
   // New session — create transport and MCP server
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
+    onsessioninitialized: (sid) => {
+      transports.set(sid, transport);
+    },
   });
 
   const mcp = createMcpServer(getUser);
   await mcp.connect(transport);
-
-  // Store transport by session ID after connection
-  if (transport.sessionId) {
-    transports.set(transport.sessionId, transport);
-  }
 
   transport.onclose = () => {
     if (transport.sessionId) {

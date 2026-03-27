@@ -9,7 +9,7 @@ export function registerArchiveTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/archive",
+    "msg-archive",
     "Archive or unarchive a thread. Primarily for MCP App use.",
     {
       thread_id: z.string().describe("Thread ID to archive/unarchive"),

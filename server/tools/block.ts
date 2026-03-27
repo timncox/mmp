@@ -9,7 +9,7 @@ export function registerBlockTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/block",
+    "msg-block",
     "Block a user. Blocked users cannot send you messages.",
     {
       handle: z.string().describe("Handle of the user to block"),

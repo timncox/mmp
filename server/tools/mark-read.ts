@@ -9,7 +9,7 @@ export function registerMarkReadTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/mark_read",
+    "msg-mark_read",
     "Mark a thread as read (updates last_read_at). Primarily for MCP App use.",
     {
       thread_id: z.string().describe("Thread ID to mark as read"),

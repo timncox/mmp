@@ -117,7 +117,7 @@ export function renderThreadView(
   starBtn.addEventListener("click", async () => {
     try {
       await app.callServerTool({
-        name: "msg/star",
+        name: "msg-star",
         arguments: { thread_id: threadId },
       });
       starBtn.innerHTML = "&#9733;";
@@ -130,7 +130,7 @@ export function renderThreadView(
   archiveBtn.addEventListener("click", async () => {
     try {
       await app.callServerTool({
-        name: "msg/archive",
+        name: "msg-archive",
         arguments: { thread_id: threadId },
       });
       navigateTo("threads");
@@ -142,7 +142,7 @@ export function renderThreadView(
   muteBtn.addEventListener("click", async () => {
     try {
       await app.callServerTool({
-        name: "msg/mute",
+        name: "msg-mute",
         arguments: { thread_id: threadId },
       });
       muteBtn.innerHTML = "&#128264;";
@@ -222,7 +222,7 @@ export function renderThreadView(
       }
 
       await app.callServerTool({
-        name: "msg/reply",
+        name: "msg-reply",
         arguments: args,
       });
 
@@ -305,7 +305,7 @@ export function renderThreadView(
     try {
       // Fetch thread details
       const result = await app.callServerTool({
-        name: "msg/thread",
+        name: "msg-thread",
         arguments: { thread_id: threadId },
       });
 
@@ -352,7 +352,7 @@ export function renderThreadView(
       // Mark as read
       try {
         await app.callServerTool({
-          name: "msg/mark_read",
+          name: "msg-mark_read",
           arguments: { thread_id: threadId },
         });
       } catch {

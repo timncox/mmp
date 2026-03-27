@@ -86,7 +86,7 @@ export function navigateTo(view: ViewName, params?: ViewParams): void {
 async function pollUnread(): Promise<void> {
   try {
     const result = await app.callServerTool({
-      name: "msg/inbox",
+      name: "msg-inbox",
       arguments: { unread_only: true },
     });
     const content = result?.content;

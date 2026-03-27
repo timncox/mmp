@@ -10,7 +10,7 @@ export function registerContactsTool(
 ): void {
   // List contacts
   server.tool(
-    "msg/contacts",
+    "msg-contacts",
     "List your contacts with their handles, display names, and nicknames.",
     {},
     async () => {
@@ -46,7 +46,7 @@ export function registerContactsTool(
 
   // Add contact
   server.tool(
-    "msg/add_contact",
+    "msg-add_contact",
     "Add a user to your contacts list by handle.",
     {
       handle: z.string().describe("Handle of the user to add as a contact"),

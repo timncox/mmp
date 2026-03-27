@@ -9,7 +9,7 @@ export function registerSearchUsersTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/search_users",
+    "msg-search_users",
     "Search for users by handle or display name. Excludes private users from results.",
     {
       query: z.string().describe("Search query to match against handles and display names"),

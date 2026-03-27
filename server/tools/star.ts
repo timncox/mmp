@@ -9,7 +9,7 @@ export function registerStarTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/star",
+    "msg-star",
     "Star or unstar a thread (toggle). Primarily for MCP App use.",
     {
       thread_id: z.string().describe("Thread ID to star/unstar"),

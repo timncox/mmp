@@ -10,7 +10,7 @@ export function registerThreadsTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/threads",
+    "msg-threads",
     "List your message threads with previews, unread counts, and member state.",
     {
       status: z

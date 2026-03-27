@@ -138,7 +138,7 @@ export function renderSettings(container: HTMLElement, app: App): void {
   async function loadProfile(): Promise<void> {
     try {
       const result = await app.callServerTool({
-        name: "msg/profile",
+        name: "msg-profile",
         arguments: {},
       });
 
@@ -188,7 +188,7 @@ export function renderSettings(container: HTMLElement, app: App): void {
 
     try {
       await app.callServerTool({
-        name: "msg/set_profile",
+        name: "msg-set_profile",
         arguments: {
           display_name: displayNameInput.value.trim(),
           bio: bioInput.value.trim(),
@@ -243,7 +243,7 @@ export function renderSettings(container: HTMLElement, app: App): void {
 
     try {
       const result = await app.callServerTool({
-        name: "msg/change_handle",
+        name: "msg-change_handle",
         arguments: { new_handle: newHandle },
       });
 

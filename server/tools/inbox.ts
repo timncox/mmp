@@ -10,7 +10,7 @@ export function registerInboxTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/inbox",
+    "msg-inbox",
     "Retrieve messages from your inbox. Decrypts server-assisted messages automatically. E2E messages show a placeholder.",
     {
       since: z.string().optional().describe("ISO timestamp — only return messages after this time"),

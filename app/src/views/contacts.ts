@@ -83,7 +83,7 @@ export function renderContacts(container: HTMLElement, app: App): void {
 
     try {
       const result = await app.callServerTool({
-        name: "msg/search_users",
+        name: "msg-search_users",
         arguments: { query },
       });
 
@@ -142,7 +142,7 @@ export function renderContacts(container: HTMLElement, app: App): void {
         if (action === "add") {
           try {
             await app.callServerTool({
-              name: "msg/add_contact",
+              name: "msg-add_contact",
               arguments: { handle },
             });
             target.textContent = "Added";
@@ -166,7 +166,7 @@ export function renderContacts(container: HTMLElement, app: App): void {
 
     try {
       const result = await app.callServerTool({
-        name: "msg/contacts",
+        name: "msg-contacts",
         arguments: {},
       });
 

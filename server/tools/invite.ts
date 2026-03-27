@@ -20,7 +20,7 @@ export function registerInviteTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/invite",
+    "msg-invite",
     "Generate an invite code that can be shared with someone to create an MMP account.",
     {},
     async () => {

@@ -10,7 +10,7 @@ export function registerDigestTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg/digest",
+    "msg-digest",
     "Get a digest of all threads and messages for a time period, with stats on total messages, unread count, and urgent messages.",
     {
       period: z
