@@ -32,8 +32,13 @@ export function registerReplyTool(
         })
         .optional()
         .describe("Pre-encrypted E2E payload"),
+      priority: z
+        .enum(["urgent", "normal", "low", "fyi"])
+        .optional()
+        .default("normal")
+        .describe("Message priority"),
     },
-    async ({ thread_id, body, attachments, encrypted_payload }) => {
+    async ({ thread_id, body, attachments, encrypted_payload, priority }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -116,7 +121,7 @@ export function registerReplyTool(
           from_user_id: user.id,
           to_user_id: recipient.id,
           reply_to: null,
-          priority: "normal",
+          priority: priority ?? "normal",
           ciphertext,
           nonce,
           sender_pub_key: senderPubKey,
@@ -156,7 +161,7 @@ export function registerReplyTool(
             thread_id,
             from_handle: user.handle,
             to_handle: r.handle,
-            priority: "normal",
+            priority: priority ?? "normal",
             has_attachments: (attachments?.length ?? 0) > 0,
             timestamp: now,
           });

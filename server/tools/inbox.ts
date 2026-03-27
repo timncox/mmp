@@ -27,7 +27,7 @@ export function registerInboxTool(
       }
 
       const sinceTs = since ? Math.floor(new Date(since).getTime() / 1000) : undefined;
-      const rawMessages = db.getMessagesForUser(user.id, limit ?? 50, sinceTs ? undefined : undefined);
+      const rawMessages = db.getMessagesForUser(user.id, limit ?? 50, sinceTs);
 
       // Build a cache of users for handle lookups
       const userCache = new Map<string, User>();

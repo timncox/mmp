@@ -496,10 +496,14 @@ export function createDb(path: string): Db {
     },
 
     updateUser(id: string, fields: Partial<Omit<User, "id">>): void {
-      const sets = Object.keys(fields)
-        .map((k) => `${k} = @${k}`)
-        .join(", ");
-      if (!sets) return;
+      const ALLOWED_COLS = new Set([
+        "handle", "display_name", "bio", "privacy", "status",
+        "public_key", "private_key", "client_public_key",
+        "token_hash", "recovery_code_hash",
+      ]);
+      const safeKeys = Object.keys(fields).filter((k) => ALLOWED_COLS.has(k));
+      if (safeKeys.length === 0) return;
+      const sets = safeKeys.map((k) => `${k} = @${k}`).join(", ");
       db.prepare(`UPDATE users SET ${sets}, updated_at = @updated_at WHERE id = @id`).run({
         ...fields,
         updated_at: now(),

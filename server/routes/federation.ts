@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { Db } from "../lib/db.js";
 import type { FederationEnvelope, WellKnownMMP } from "../lib/types.js";
 import { fireWebhook } from "../lib/webhooks.js";
+import { checkRate } from "../lib/rate-limit.js";
 import {
   getOrCreateServerIdentity,
   verifySignature,
@@ -65,9 +66,16 @@ export function mountFederationRoutes(app: Express, db: Db, serverUrl: string): 
   // POST /federation/deliver — receive a message from a remote server
   // -----------------------------------------------------------------------
   app.post("/federation/deliver", async (req, res) => {
+    // Rate limit federation delivery: 30/min per source server
+    const fromServer = req.headers["x-mmp-server"] as string || "unknown";
+    const rate = checkRate(`fed:${fromServer}`, 30, 60_000);
+    if (!rate.allowed) {
+      res.status(429).json({ error: "Rate limited" });
+      return;
+    }
+
     const envelope = req.body as FederationEnvelope;
     const signature = req.headers["x-mmp-signature"] as string;
-    const fromServer = req.headers["x-mmp-server"] as string;
 
     if (!envelope || !signature || !fromServer) {
       res.status(400).json({ error: "Missing envelope, signature, or server header" });
@@ -81,7 +89,8 @@ export function mountFederationRoutes(app: Express, db: Db, serverUrl: string): 
       return;
     }
 
-    const bodyStr = JSON.stringify(envelope);
+    // Use raw body bytes for signature verification (not re-serialized JSON)
+    const bodyStr = (req as any).rawBody?.toString("utf-8") ?? JSON.stringify(envelope);
     if (!verifySignature(bodyStr, signature, discovery.signing_public_key)) {
       res.status(403).json({ error: "Invalid signature" });
       return;

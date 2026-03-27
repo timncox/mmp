@@ -20,7 +20,7 @@ export function registerThreadTool(
       if (!user) {
         return {
           isError: true,
-          content: [{ type: "text" as const, text: "Not authenticated." }],
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Not authenticated." }) }],
         };
       }
 
@@ -28,7 +28,7 @@ export function registerThreadTool(
       if (!thread) {
         return {
           isError: true,
-          content: [{ type: "text" as const, text: "Thread not found." }],
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Thread not found." }) }],
         };
       }
 

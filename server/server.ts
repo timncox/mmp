@@ -33,6 +33,7 @@ import { registerRemoveMemberTool } from "./tools/remove-member.js";
 import { registerRotateKeysTool } from "./tools/rotate-keys.js";
 import { registerSetWebhookTool } from "./tools/set-webhook.js";
 import { mountFederationRoutes } from "./routes/federation.js";
+import { checkRate } from "./lib/rate-limit.js";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -90,7 +91,12 @@ export function createMcpServer(
 // Express app
 // ---------------------------------------------------------------------------
 const app = express();
-app.use(express.json());
+// Capture raw body for federation signature verification
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 
 // Federation routes
 mountFederationRoutes(app, db, SERVER_URL);
@@ -212,18 +218,41 @@ app.get("/invite/:code", (req, res) => {
 });
 
 // MCP endpoint — per-request transport with auth
+const MAX_SESSIONS = 1000;
+const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
 const transports = new Map<string, StreamableHTTPServerTransport>();
-// Mutable auth state per session — register/recover can upgrade
 const sessionAuth = new Map<string, { user: User | null }>();
+const sessionLastSeen = new Map<string, number>();
+
+// Periodic session cleanup
+setInterval(() => {
+  const now = Date.now();
+  for (const [sid, lastSeen] of sessionLastSeen) {
+    if (now - lastSeen > SESSION_TTL_MS) {
+      transports.delete(sid);
+      sessionAuth.delete(sid);
+      sessionLastSeen.delete(sid);
+    }
+  }
+}, 60_000);
 
 app.post("/mcp", async (req, res) => {
+  // Rate limit: 60 requests per minute per IP
+  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const rate = checkRate(`mcp:${clientIp}`, 60, 60_000);
+  if (!rate.allowed) {
+    res.status(429).json({ error: "Rate limited. Try again later.", retry_after_ms: rate.retryAfterMs });
+    return;
+  }
+
   const token = extractToken(req);
   const user = authenticateUser(token, db);
 
   // Check for existing session
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
   if (sessionId && transports.has(sessionId)) {
-    // Re-check token auth on each request (in case URL changed)
+    sessionLastSeen.set(sessionId, Date.now());
     const auth = sessionAuth.get(sessionId);
     if (auth && user && !auth.user) {
       auth.user = user;
@@ -233,17 +262,23 @@ app.post("/mcp", async (req, res) => {
     return;
   }
 
+  // Reject new sessions if at capacity
+  if (transports.size >= MAX_SESSIONS) {
+    res.status(503).json({ error: "Server at session capacity. Try again later." });
+    return;
+  }
+
   // New session — create mutable auth state
   const auth = { user };
   const getUser = (): User | null => auth.user;
   const setUser = (u: User): void => { auth.user = u; };
 
-  // New session — create transport and MCP server
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: (sid) => {
       transports.set(sid, transport);
       sessionAuth.set(sid, auth);
+      sessionLastSeen.set(sid, Date.now());
     },
   });
 
@@ -254,6 +289,7 @@ app.post("/mcp", async (req, res) => {
     if (transport.sessionId) {
       transports.delete(transport.sessionId);
       sessionAuth.delete(transport.sessionId);
+      sessionLastSeen.delete(transport.sessionId);
     }
   };
 

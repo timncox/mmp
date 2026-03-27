@@ -17,8 +17,9 @@ export function registerWhoamiTool(
         return {
           content: [{
             type: "text" as const,
-            text: "Not authenticated. You need to register first with mmp-register.",
+            text: JSON.stringify({ error: "Not authenticated. Register first with mmp-register, or add your token to the server URL." }),
           }],
+          isError: true,
         };
       }
 

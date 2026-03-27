@@ -22,9 +22,12 @@ function truncate(text: string, max: number): string {
 
 interface ThreadData {
   id: string;
+  type?: "dm" | "group";
+  name?: string;
   subject: string;
-  other_handle: string;
-  other_display_name: string;
+  other_handle?: string;
+  other_display_name?: string;
+  member_count?: number;
   last_message_body: string | null;
   last_message_at: number;
   unread_count: number;
@@ -157,7 +160,15 @@ export function renderThreadList(container: HTMLElement, app: App): void {
           : "priority-normal";
         item.className = `thread-item ${priorityClass}`;
 
-        const displayName = thread.other_display_name || thread.other_handle;
+        const isGroup = thread.type === "group";
+        const title = isGroup
+          ? (thread.name || "Group")
+          : `@${thread.other_handle || "unknown"}`;
+        const subtitle = isGroup
+          ? `${thread.member_count || 0} members`
+          : (thread.other_display_name && thread.other_display_name !== thread.other_handle
+              ? thread.other_display_name
+              : "");
         const preview = thread.last_message_body
           ? truncate(thread.last_message_body, 80)
           : "No messages yet";
@@ -167,8 +178,8 @@ export function renderThreadList(container: HTMLElement, app: App): void {
         item.innerHTML = `
           <div class="thread-item-header">
             <span class="thread-item-handle">
-              @${thread.other_handle}
-              ${displayName !== thread.other_handle ? ` <span style="font-weight:400;color:var(--text-secondary);">${displayName}</span>` : ""}
+              ${isGroup ? "&#128101; " : ""}${title}
+              ${subtitle ? ` <span style="font-weight:400;color:var(--text-secondary);">${subtitle}</span>` : ""}
             </span>
             <div class="thread-item-meta">
               ${isE2E ? '<span class="badge badge-e2e" title="End-to-end encrypted"></span>' : ""}
