@@ -26,6 +26,7 @@ import { registerArchiveTool } from "./tools/archive.js";
 import { registerStarTool } from "./tools/star.js";
 import { registerMuteTool } from "./tools/mute.js";
 import { registerWhoamiTool } from "./tools/whoami.js";
+import { registerThreadTool } from "./tools/thread.js";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -64,6 +65,7 @@ export function createMcpServer(getUser: () => User | null): McpServer {
   registerStarTool(mcp, db, getUser);
   registerMuteTool(mcp, db, getUser);
   registerWhoamiTool(mcp, db, getUser);
+  registerThreadTool(mcp, db, getUser);
 
   return mcp;
 }
