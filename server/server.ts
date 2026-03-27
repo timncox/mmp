@@ -37,7 +37,7 @@ export const db: Db = createDb(dbPath);
 // ---------------------------------------------------------------------------
 export function createMcpServer(getUser: () => User | null): McpServer {
   const mcp = new McpServer(
-    { name: "mmp", version: "1.0.0" },
+    { name: "MMP-Messaging", version: "1.0.0" },
     { capabilities: { tools: {} } },
   );
 

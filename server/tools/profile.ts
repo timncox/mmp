@@ -12,7 +12,7 @@ export function registerProfileTool(
 ): void {
   // Set profile
   server.tool(
-    "msg-set_profile",
+    "mmp-set_profile",
     "Update your profile information — display name, bio, status, or privacy level.",
     {
       display_name: z.string().optional().describe("Display name"),
@@ -63,7 +63,7 @@ export function registerProfileTool(
 
   // Change handle
   server.tool(
-    "msg-change_handle",
+    "mmp-change_handle",
     "Change your handle. The old handle will redirect to the new one for 30 days.",
     {
       new_handle: z.string().describe("New handle (3-20 chars, lowercase alphanumeric + underscores, must start with a letter)"),

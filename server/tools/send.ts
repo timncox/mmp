@@ -11,8 +11,8 @@ export function registerSendTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg-send",
-    "Send a message to another MMP user. Supports plaintext (server-assisted encryption) or E2E encrypted payloads.",
+    "mmp-send",
+    "Send an MMP message to another user by their @handle. This is the MCP Messaging Protocol — NOT email, NOT Gmail, NOT SMS. Use when the user says 'send @someone a message' or 'tell @someone something' via MMP.",
     {
       to: z.string().describe("Handle of the recipient"),
       body: z.string().optional().describe("Plaintext message body (server will encrypt)"),

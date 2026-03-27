@@ -70,7 +70,7 @@ export function renderOnboarding(container: HTMLElement, app: App): void {
 
       // Call server registration
       const result = await app.callServerTool({
-        name: "msg-register",
+        name: "mmp-register",
         arguments: {
           handle,
           client_public_key: keyPair.publicKey,

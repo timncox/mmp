@@ -104,7 +104,7 @@ export function renderThreadList(container: HTMLElement, app: App): void {
 
     try {
       const result = await app.callServerTool({
-        name: "msg-threads",
+        name: "mmp-threads",
         arguments: {},
       });
 

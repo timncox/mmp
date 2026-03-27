@@ -124,7 +124,7 @@ export function renderCompose(
       // Try to look up recipient's public key for e2e encryption
       try {
         const profileResult = await app.callServerTool({
-          name: "msg-lookup",
+          name: "mmp-lookup",
           arguments: { handle },
         });
         const profileContent = profileResult?.content;
@@ -148,7 +148,7 @@ export function renderCompose(
       }
 
       const result = await app.callServerTool({
-        name: "msg-send",
+        name: "mmp-send",
         arguments: args,
       });
 

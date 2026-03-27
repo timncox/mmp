@@ -9,7 +9,7 @@ export function registerLookupTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg-lookup",
+    "mmp-lookup",
     "Look up a user's profile and public keys by handle. Respects privacy levels.",
     {
       handle: z.string().describe("Handle of the user to look up"),

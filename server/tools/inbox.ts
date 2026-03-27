@@ -10,8 +10,8 @@ export function registerInboxTool(
   getUser: () => User | null,
 ): void {
   server.tool(
-    "msg-inbox",
-    "Retrieve messages from your inbox. Decrypts server-assisted messages automatically. E2E messages show a placeholder.",
+    "mmp-inbox",
+    "Get your MMP (MCP Messaging Protocol) inbox — person-to-person messages sent via MMP handles (@username), NOT email or Gmail. Use this when the user says 'check my MMP messages' or 'check my messages' in the context of MMP.",
     {
       since: z.string().optional().describe("ISO timestamp — only return messages after this time"),
       unread_only: z.boolean().optional().default(false).describe("If true, only return unread messages"),
