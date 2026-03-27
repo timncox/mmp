@@ -13,6 +13,7 @@ import type {
   RemoteUser,
   ServerIdentity,
   KeyEpoch,
+  Webhook,
 } from "./types.js";
 
 function now(): number {
@@ -102,6 +103,11 @@ export interface Db {
   getKeyEpoch(userId: string, epoch: number): KeyEpoch | undefined;
   getKeyEpochs(userId: string): KeyEpoch[];
   retireEpoch(userId: string, epoch: number): void;
+
+  // Webhooks
+  setWebhook(webhook: Webhook): void;
+  getWebhook(userId: string): Webhook | undefined;
+  removeWebhook(userId: string): void;
 
   // Raw access
   raw: Database.Database;
@@ -237,6 +243,14 @@ export function createDb(path: string): Db {
     CREATE INDEX IF NOT EXISTS idx_thread_members_user ON thread_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_users_handle ON users(handle);
     CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
+    CREATE TABLE IF NOT EXISTS webhooks (
+      user_id TEXT PRIMARY KEY,
+      url TEXT NOT NULL,
+      secret TEXT NOT NULL,
+      events TEXT NOT NULL DEFAULT 'message.received',
+      created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_key_epochs_user ON key_epochs(user_id, epoch);
     CREATE INDEX IF NOT EXISTS idx_remote_users_handle ON remote_users(handle, server);
   `);
@@ -419,6 +433,14 @@ export function createDb(path: string): Db {
     retireEpoch: db.prepare(
       "UPDATE key_epochs SET retired_at = ? WHERE user_id = ? AND epoch = ?",
     ),
+
+    // Webhooks
+    setWebhook: db.prepare(`
+      INSERT OR REPLACE INTO webhooks (user_id, url, secret, events, created_at)
+      VALUES (@user_id, @url, @secret, @events, @created_at)
+    `),
+    getWebhook: db.prepare("SELECT * FROM webhooks WHERE user_id = ?"),
+    removeWebhook: db.prepare("DELETE FROM webhooks WHERE user_id = ?"),
 
     findThreadBetweenUsers: db.prepare(`
       SELECT t.* FROM threads t
@@ -706,6 +728,19 @@ export function createDb(path: string): Db {
 
     updateThreadMemberRole(threadId: string, userId: string, role: string): void {
       stmts.updateThreadMemberRole.run(role, threadId, userId);
+    },
+
+    // Webhooks
+    setWebhook(webhook: Webhook): void {
+      stmts.setWebhook.run(webhook);
+    },
+
+    getWebhook(userId: string): Webhook | undefined {
+      return stmts.getWebhook.get(userId) as Webhook | undefined;
+    },
+
+    removeWebhook(userId: string): void {
+      stmts.removeWebhook.run(userId);
     },
 
     // Raw access

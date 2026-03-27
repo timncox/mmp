@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Db } from "../lib/db.js";
 import type { User } from "../lib/types.js";
 import { encryptMessage } from "../lib/crypto.js";
+import { fireWebhook } from "../lib/webhooks.js";
 
 const attachmentSchema = z.object({
   filename: z.string().describe("Original filename"),
@@ -144,6 +145,23 @@ export function registerReplyTool(
       }
 
       db.updateThreadTimestamp(thread_id);
+
+      // Fire webhooks for all recipients
+      for (const recipientMember of recipients) {
+        const r = db.getUserById(recipientMember.user_id);
+        if (r) {
+          fireWebhook(db, r.id, {
+            event: "message.received",
+            message_id: messageIds[0],
+            thread_id,
+            from_handle: user.handle,
+            to_handle: r.handle,
+            priority: "normal",
+            has_attachments: (attachments?.length ?? 0) > 0,
+            timestamp: now,
+          });
+        }
+      }
 
       return {
         content: [{

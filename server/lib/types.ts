@@ -187,3 +187,24 @@ export interface ParsedHandle {
   server: string | null;
   isRemote: boolean;
 }
+
+// --- Webhook types ---
+
+export interface Webhook {
+  user_id: string;
+  url: string;
+  secret: string;
+  events: string;
+  created_at: number;
+}
+
+export interface WebhookPayload {
+  event: "message.received" | "message.sent";
+  message_id: string;
+  thread_id: string;
+  from_handle: string;
+  to_handle: string;
+  priority: string;
+  has_attachments: boolean;
+  timestamp: number;
+}

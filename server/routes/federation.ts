@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { v4 as uuidv4 } from "uuid";
 import type { Db } from "../lib/db.js";
 import type { FederationEnvelope, WellKnownMMP } from "../lib/types.js";
+import { fireWebhook } from "../lib/webhooks.js";
 import {
   getOrCreateServerIdentity,
   verifySignature,
@@ -161,6 +162,18 @@ export function mountFederationRoutes(app: Express, db: Db, serverUrl: string): 
     }
 
     db.updateThreadTimestamp(thread.id);
+
+    // Fire webhook for the local recipient
+    fireWebhook(db, recipient.id, {
+      event: "message.received",
+      message_id: messageId,
+      thread_id: thread.id,
+      from_handle: `${envelope.from_handle}@${envelope.from_server}`,
+      to_handle: recipient.handle,
+      priority: envelope.priority || "normal",
+      has_attachments: (envelope.attachments?.length ?? 0) > 0,
+      timestamp: envelope.timestamp,
+    });
 
     res.json({ accepted: true, message_id: messageId });
   });

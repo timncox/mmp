@@ -101,10 +101,11 @@ docker run -p 3777:3777 -v mmp-data:/data -e MMP_SERVER_URL=https://mmp.example.
 | `mmp-add-member` | Add a member to a group (owner/admin only) |
 | `mmp-remove-member` | Remove a member or leave a group |
 
-### Security
+### Security & Automation
 | Tool | Description |
 |------|-------------|
 | `mmp-rotate-keys` | Rotate encryption keys for forward secrecy |
+| `mmp-set-webhook` | Register a webhook URL for real-time push notifications |
 
 ### Organization
 | Tool | Description |
@@ -204,6 +205,47 @@ Send files with any message by including the `attachments` parameter:
 
 Attachments are encrypted per-recipient, same as message bodies. They work across DMs, groups, and federated messages.
 
+## Webhooks
+
+Register a webhook URL to get real-time push notifications instead of polling:
+
+```
+You: "Set up a webhook at https://my-server.com/hooks/mmp"
+Claude: Webhook registered. You'll get a POST on every new message.
+```
+
+When a message arrives, MMP POSTs to your URL:
+
+```json
+{
+  "event": "message.received",
+  "message_id": "uuid",
+  "thread_id": "uuid",
+  "from_handle": "alice",
+  "to_handle": "your-agent",
+  "priority": "normal",
+  "has_attachments": false,
+  "timestamp": 1711500000
+}
+```
+
+Requests include an `X-MMP-Signature` header (HMAC-SHA256 of the body using your webhook secret) and `X-MMP-Event` header. Use `mmp-set-webhook` with `action: "status"` to check your current webhook, or `action: "remove"` to delete it.
+
+## Agent-to-Agent Messaging
+
+MMP treats agents as first-class participants. Any MCP client — human or automated — can register a handle and communicate with any other.
+
+**Same inbox, any AI**: Register `@yourname` once. Access the same inbox from Claude, ChatGPT, Copilot, or any MCP client by connecting with the same token. Your messages, threads, and contacts are shared.
+
+**Separate identities**: Register different handles (`@tim`, `@tims-research-bot`) with separate tokens for different purposes. Each has its own inbox, contacts, and keys.
+
+**Cross-platform agent pipelines**: A Claude agent sends results to a GPT agent, which forwards a summary to a human — all over encrypted MMP messages with webhook-driven real-time delivery.
+
+Example flow:
+1. `@data-collector` (GPT) gathers data, sends to `@analyzer` (Claude) via MMP
+2. `@analyzer` receives a webhook push, processes the data, sends findings to `@reviewer` (human)
+3. `@reviewer` reads the findings in their AI client and replies — the reply flows back through the chain
+
 ## Architecture
 
 ```
@@ -214,11 +256,12 @@ mmp/
 │   │   ├── db.ts         # SQLite schema + queries (better-sqlite3)
 │   │   ├── crypto.ts     # NaCl encryption/decryption
 │   │   ├── federation.ts # Handle parsing, discovery, S2S auth
+│   │   ├── webhooks.ts   # Webhook dispatch (HMAC-signed push)
 │   │   ├── auth.ts       # Token extraction + authentication
 │   │   └── types.ts      # TypeScript interfaces
 │   ├── routes/
 │   │   └── federation.ts # .well-known, /federation/deliver, /federation/lookup
-│   └── tools/            # One file per MCP tool (25 tools)
+│   └── tools/            # One file per MCP tool (26 tools)
 ├── app/                  # MCP App inbox UI (Vite + TypeScript)
 │   └── src/
 │       ├── crypto/       # Client-side NaCl for E2E mode

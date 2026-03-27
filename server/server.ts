@@ -31,6 +31,7 @@ import { registerCreateGroupTool } from "./tools/create-group.js";
 import { registerAddMemberTool } from "./tools/add-member.js";
 import { registerRemoveMemberTool } from "./tools/remove-member.js";
 import { registerRotateKeysTool } from "./tools/rotate-keys.js";
+import { registerSetWebhookTool } from "./tools/set-webhook.js";
 import { mountFederationRoutes } from "./routes/federation.js";
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,7 @@ export function createMcpServer(getUser: () => User | null): McpServer {
   registerAddMemberTool(mcp, db, getUser);
   registerRemoveMemberTool(mcp, db, getUser);
   registerRotateKeysTool(mcp, db, getUser);
+  registerSetWebhookTool(mcp, db, getUser);
 
   return mcp;
 }
