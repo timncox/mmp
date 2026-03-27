@@ -131,13 +131,40 @@ async function init(): Promise<void> {
     // Connection may fail if not in an MCP App host — render anyway
   }
 
-  // Determine initial view
-  const token = localStorage.getItem("mmp_token");
-  if (!token || !hasClientKeys()) {
-    currentView = "onboarding";
-  } else {
-    currentView = "threads";
+  // Determine initial view: check if already authenticated via server
+  let authenticated = false;
+  try {
+    const whoami = await app.callServerTool({
+      name: "mmp-whoami",
+      arguments: {},
+    });
+    const content = whoami?.content;
+    if (content && Array.isArray(content)) {
+      const textItem = content.find(
+        (c: { type: string }) => c.type === "text",
+      ) as { type: "text"; text: string } | undefined;
+      if (textItem) {
+        try {
+          const data = JSON.parse(textItem.text);
+          if (data.handle) {
+            authenticated = true;
+            localStorage.setItem("mmp_handle", data.handle);
+          }
+        } catch {
+          // Not JSON = not authenticated
+        }
+      }
+    }
+  } catch {
+    // whoami failed — check localStorage fallback
   }
+
+  if (!authenticated) {
+    const token = localStorage.getItem("mmp_token");
+    authenticated = !!(token && hasClientKeys());
+  }
+
+  currentView = authenticated ? "threads" : "onboarding";
 
   renderView();
 
