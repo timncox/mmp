@@ -146,6 +146,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "Test Thread",
         created_by: user1.id,
         created_at: ts,
@@ -155,12 +157,12 @@ describe("Database", () => {
       // Add members via raw since createThread doesn't add members
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user1.id);
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user2.id);
 
@@ -186,6 +188,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "",
         created_by: user1.id,
         created_at: ts,
@@ -193,12 +197,12 @@ describe("Database", () => {
       });
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user1.id);
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user2.id);
 
@@ -215,6 +219,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "",
         created_by: user.id,
         created_at: ts,
@@ -222,7 +228,7 @@ describe("Database", () => {
       });
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user.id);
 
@@ -243,6 +249,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "",
         created_by: user1.id,
         created_at: ts,
@@ -250,12 +258,12 @@ describe("Database", () => {
       });
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user1.id);
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user2.id);
 
@@ -271,6 +279,7 @@ describe("Database", () => {
         nonce: "nonce123",
         sender_pub_key: "pk_sender",
         encryption_mode: "e2e",
+        key_epoch: 0,
         created_at: ts,
       });
 
@@ -290,6 +299,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "",
         created_by: user1.id,
         created_at: ts,
@@ -307,6 +318,7 @@ describe("Database", () => {
         nonce: "nonce",
         sender_pub_key: "pk",
         encryption_mode: "e2e",
+        key_epoch: 0,
         created_at: ts,
       });
 
@@ -325,6 +337,8 @@ describe("Database", () => {
       const ts = Math.floor(Date.now() / 1000);
       db.createThread({
         id: threadId,
+        type: "dm",
+        name: "",
         subject: "",
         created_by: user1.id,
         created_at: ts,
@@ -332,7 +346,7 @@ describe("Database", () => {
       });
       db.raw
         .prepare(
-          "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (?, ?, 'active', 0)",
+          "INSERT INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (?, ?, 'member', 'active', 0)",
         )
         .run(threadId, user2.id);
 
@@ -349,6 +363,7 @@ describe("Database", () => {
           nonce: "n",
           sender_pub_key: "pk",
           encryption_mode: "e2e",
+        key_epoch: 0,
           created_at: ts + i + 1,
         });
       }

@@ -27,6 +27,11 @@ import { registerStarTool } from "./tools/star.js";
 import { registerMuteTool } from "./tools/mute.js";
 import { registerWhoamiTool } from "./tools/whoami.js";
 import { registerThreadTool } from "./tools/thread.js";
+import { registerCreateGroupTool } from "./tools/create-group.js";
+import { registerAddMemberTool } from "./tools/add-member.js";
+import { registerRemoveMemberTool } from "./tools/remove-member.js";
+import { registerRotateKeysTool } from "./tools/rotate-keys.js";
+import { mountFederationRoutes } from "./routes/federation.js";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -37,6 +42,8 @@ export const db: Db = createDb(dbPath);
 // ---------------------------------------------------------------------------
 // MCP Server factory
 // ---------------------------------------------------------------------------
+const SERVER_URL = process.env.MMP_SERVER_URL || `http://localhost:${parseInt(process.env.PORT || "3777", 10)}`;
+
 export function createMcpServer(getUser: () => User | null): McpServer {
   const mcp = new McpServer(
     { name: "MMP-Messaging", version: "1.0.0" },
@@ -48,7 +55,7 @@ export function createMcpServer(getUser: () => User | null): McpServer {
   registerRecoverTool(mcp, db);
 
   // Authenticated tools
-  registerSendTool(mcp, db, getUser);
+  registerSendTool(mcp, db, getUser, SERVER_URL);
   registerReplyTool(mcp, db, getUser);
   registerInboxTool(mcp, db, getUser);
   registerThreadsTool(mcp, db, getUser);
@@ -66,6 +73,10 @@ export function createMcpServer(getUser: () => User | null): McpServer {
   registerMuteTool(mcp, db, getUser);
   registerWhoamiTool(mcp, db, getUser);
   registerThreadTool(mcp, db, getUser);
+  registerCreateGroupTool(mcp, db, getUser);
+  registerAddMemberTool(mcp, db, getUser);
+  registerRemoveMemberTool(mcp, db, getUser);
+  registerRotateKeysTool(mcp, db, getUser);
 
   return mcp;
 }
@@ -75,6 +86,9 @@ export function createMcpServer(getUser: () => User | null): McpServer {
 // ---------------------------------------------------------------------------
 const app = express();
 app.use(express.json());
+
+// Federation routes
+mountFederationRoutes(app, db, SERVER_URL);
 
 // Health check
 app.get("/health", (_req, res) => {

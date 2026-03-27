@@ -11,7 +11,7 @@ export function registerThreadTool(
 ): void {
   server.tool(
     "mmp-thread",
-    "Get a single thread with all its messages. Returns thread metadata, messages (decrypted if server-assisted), and the other participant's info.",
+    "Get a single thread (DM or group) with all its messages. Returns thread metadata, messages (decrypted if server-assisted), member info, and attachment metadata.",
     {
       thread_id: z.string().describe("The thread ID to fetch"),
     },
@@ -41,44 +41,83 @@ export function registerThreadTool(
       }
 
       const members = db.getThreadMembers(thread_id);
-      const otherMemberId = members.find((m) => m.user_id !== user.id)?.user_id;
-      const otherUser = otherMemberId ? db.getUserById(otherMemberId) : null;
+      const memberInfo = members.map((m) => {
+        // Check if remote user
+        if (m.user_id.startsWith("remote:")) {
+          const remote = db.getRemoteUserById(m.user_id);
+          return {
+            handle: remote ? `${remote.handle}@${remote.server}` : m.user_id,
+            display_name: remote?.display_name ?? m.user_id,
+            role: m.role,
+            public_key: remote?.public_key,
+            federated: true,
+          };
+        }
+        const u = db.getUserById(m.user_id);
+        return {
+          handle: u?.handle ?? "unknown",
+          display_name: u?.display_name ?? "unknown",
+          role: m.role,
+          public_key: u?.public_key,
+          client_public_key: u?.client_public_key,
+        };
+      });
 
       const rawMessages = db.getMessagesForThread(thread_id, 200);
 
-      const messages = rawMessages.map((msg) => {
+      // Deduplicate fan-out messages for groups (same from_user + created_at)
+      const seen = new Set<string>();
+      const deduped = rawMessages.filter((msg) => {
+        if (thread.type === "group") {
+          // For groups, show the copy addressed to the current user (or from the current user)
+          if (msg.from_user_id === user.id || msg.to_user_id === user.id) {
+            const key = `${msg.from_user_id}:${msg.created_at}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }
+          return false;
+        }
+        return true;
+      });
+
+      const messages = deduped.map((msg) => {
         const fromUser = db.getUserById(msg.from_user_id);
         const toUser = db.getUserById(msg.to_user_id);
         let body: string | null = null;
 
         if (msg.encryption_mode === "server_assisted") {
           if (msg.to_user_id === user.id) {
-            // User is recipient — decrypt with sender's pubkey + our privkey
-            body = decryptMessage(
-              msg.ciphertext,
-              msg.nonce,
-              msg.sender_pub_key,
-              user.private_key,
-            );
+            // Use epoch-specific key if available
+            const epoch = msg.key_epoch ? db.getKeyEpoch(user.id, msg.key_epoch) : null;
+            const privKey = epoch?.private_key ?? user.private_key;
+            body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
           } else {
-            // User is sender — decrypt with recipient's privkey + sender's pubkey
             const recipient = db.getUserById(msg.to_user_id);
             if (recipient) {
-              body = decryptMessage(
-                msg.ciphertext,
-                msg.nonce,
-                msg.sender_pub_key,
-                recipient.private_key,
-              );
+              const epoch = msg.key_epoch ? db.getKeyEpoch(recipient.id, msg.key_epoch) : null;
+              const privKey = epoch?.private_key ?? recipient.private_key;
+              body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
             }
           }
         }
+
+        // Get attachment metadata
+        const attachments = db.getAttachmentsForMessage(msg.id);
+        const attachmentInfo = attachments.length > 0
+          ? attachments.map((a) => ({
+              id: a.id,
+              filename: a.filename,
+              mime_type: a.mime_type,
+              size_bytes: a.size_bytes,
+            }))
+          : undefined;
 
         return {
           id: msg.id,
           thread_id: msg.thread_id,
           from_handle: fromUser?.handle ?? "unknown",
-          to_handle: toUser?.handle ?? "unknown",
+          to_handle: thread.type === "group" ? undefined : (toUser?.handle ?? "unknown"),
           body,
           ciphertext: msg.encryption_mode === "e2e" ? msg.ciphertext : undefined,
           nonce: msg.encryption_mode === "e2e" ? msg.nonce : undefined,
@@ -86,23 +125,32 @@ export function registerThreadTool(
           priority: msg.priority,
           encryption_mode: msg.encryption_mode,
           reply_to: msg.reply_to,
+          attachments: attachmentInfo,
           created_at: msg.created_at,
         };
       });
 
+      const result: Record<string, unknown> = {
+        id: thread.id,
+        type: thread.type,
+        subject: thread.subject,
+        messages,
+        members: memberInfo,
+        member_state: member.state,
+      };
+
+      if (thread.type === "group") {
+        result.name = thread.name;
+        result.member_count = members.length;
+      } else {
+        const other = memberInfo.find((m) => m.handle !== user.handle);
+        result.other_handle = other?.handle ?? "unknown";
+        result.other_public_key = other?.public_key;
+        result.other_client_public_key = other?.client_public_key;
+      }
+
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({
-            id: thread.id,
-            subject: thread.subject,
-            messages,
-            other_handle: otherUser?.handle ?? "unknown",
-            other_public_key: otherUser?.public_key,
-            other_client_public_key: otherUser?.client_public_key,
-            member_state: member.state,
-          }),
-        }],
+        content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
     },
   );

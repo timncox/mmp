@@ -5,6 +5,12 @@ import type { Db } from "../lib/db.js";
 import type { User } from "../lib/types.js";
 import { encryptMessage } from "../lib/crypto.js";
 
+const attachmentSchema = z.object({
+  filename: z.string().describe("Original filename"),
+  mime_type: z.string().optional().default("application/octet-stream").describe("MIME type"),
+  data: z.string().describe("Base64-encoded file content (plaintext — server will encrypt)"),
+});
+
 export function registerReplyTool(
   server: McpServer,
   db: Db,
@@ -12,10 +18,11 @@ export function registerReplyTool(
 ): void {
   server.tool(
     "mmp-reply",
-    "Reply to an existing thread. Supports plaintext (server-assisted encryption) or E2E encrypted payloads.",
+    "Reply to an existing MMP thread (DM or group). Supports plaintext (server-assisted encryption) or E2E encrypted payloads. Supports file attachments.",
     {
       thread_id: z.string().describe("Thread ID to reply in"),
       body: z.string().optional().describe("Plaintext message body (server will encrypt)"),
+      attachments: z.array(attachmentSchema).optional().describe("File attachments (base64-encoded)"),
       encrypted_payload: z
         .object({
           ciphertext: z.string(),
@@ -25,7 +32,7 @@ export function registerReplyTool(
         .optional()
         .describe("Pre-encrypted E2E payload"),
     },
-    async ({ thread_id, body, encrypted_payload }) => {
+    async ({ thread_id, body, attachments, encrypted_payload }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -34,14 +41,13 @@ export function registerReplyTool(
         };
       }
 
-      if (!body && !encrypted_payload) {
+      if (!body && !encrypted_payload && (!attachments || attachments.length === 0)) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: "Either body or encrypted_payload is required." }) }],
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Either body, encrypted_payload, or attachments is required." }) }],
           isError: true,
         };
       }
 
-      // Validate thread exists
       const thread = db.getThread(thread_id);
       if (!thread) {
         return {
@@ -50,7 +56,6 @@ export function registerReplyTool(
         };
       }
 
-      // Validate user is a member
       const member = db.getThreadMember(thread_id, user.id);
       if (!member) {
         return {
@@ -59,73 +64,97 @@ export function registerReplyTool(
         };
       }
 
-      // Find the other member as recipient
-      const members = db.getThreadMembers(thread_id);
-      const otherMember = members.find((m) => m.user_id !== user.id);
-      if (!otherMember) {
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: "No recipient found in thread." }) }],
-          isError: true,
-        };
-      }
-
-      const recipient = db.getUserById(otherMember.user_id);
-      if (!recipient) {
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: "Recipient user not found." }) }],
-          isError: true,
-        };
-      }
-
-      // Determine encryption
-      let ciphertext: string;
-      let nonce: string;
-      let senderPubKey: string;
-      let encryptionMode: "e2e" | "server_assisted";
-
-      if (encrypted_payload) {
-        ciphertext = encrypted_payload.ciphertext;
-        nonce = encrypted_payload.nonce;
-        senderPubKey = encrypted_payload.sender_public_key;
-        encryptionMode = "e2e";
-      } else {
-        const encrypted = encryptMessage(body!, recipient.public_key, user.private_key);
-        ciphertext = encrypted.ciphertext;
-        nonce = encrypted.nonce;
-        senderPubKey = encrypted.sender_public_key;
-        encryptionMode = "server_assisted";
-      }
-
       const now = Math.floor(Date.now() / 1000);
-      const messageId = uuidv4();
+      const members = db.getThreadMembers(thread_id);
+      const recipients = members.filter((m) => m.user_id !== user.id);
 
-      db.createMessage({
-        id: messageId,
-        thread_id,
-        from_user_id: user.id,
-        to_user_id: recipient.id,
-        reply_to: null,
-        priority: "normal",
-        ciphertext,
-        nonce,
-        sender_pub_key: senderPubKey,
-        encryption_mode: encryptionMode,
-        created_at: now,
-      });
+      if (recipients.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "No recipients found in thread." }) }],
+          isError: true,
+        };
+      }
+
+      // Fan-out: one encrypted message per recipient (works for both DMs and groups)
+      const messageIds: string[] = [];
+      const senderEpoch = db.getCurrentEpoch(user.id);
+      const senderPrivKey = senderEpoch?.private_key ?? user.private_key;
+      const keyEpoch = senderEpoch?.epoch ?? 0;
+
+      for (const recipientMember of recipients) {
+        const recipient = db.getUserById(recipientMember.user_id);
+        if (!recipient) continue;
+
+        const recEpoch = db.getCurrentEpoch(recipient.id);
+        const recPubKey = recEpoch?.public_key ?? recipient.public_key;
+
+        let ciphertext: string;
+        let nonce: string;
+        let senderPubKey: string;
+        let encryptionMode: "e2e" | "server_assisted";
+
+        if (encrypted_payload) {
+          ciphertext = encrypted_payload.ciphertext;
+          nonce = encrypted_payload.nonce;
+          senderPubKey = encrypted_payload.sender_public_key;
+          encryptionMode = "e2e";
+        } else {
+          const encrypted = encryptMessage(body || "", recPubKey, senderPrivKey);
+          ciphertext = encrypted.ciphertext;
+          nonce = encrypted.nonce;
+          senderPubKey = encrypted.sender_public_key;
+          encryptionMode = "server_assisted";
+        }
+
+        const messageId = uuidv4();
+        messageIds.push(messageId);
+
+        db.createMessage({
+          id: messageId,
+          thread_id,
+          from_user_id: user.id,
+          to_user_id: recipient.id,
+          reply_to: null,
+          priority: "normal",
+          ciphertext,
+          nonce,
+          sender_pub_key: senderPubKey,
+          encryption_mode: encryptionMode,
+          key_epoch: keyEpoch,
+          created_at: now,
+        });
+
+        if (attachments && attachments.length > 0) {
+          for (const att of attachments) {
+            const dataBytes = Buffer.from(att.data, "base64");
+            const encrypted = encryptMessage(att.data, recPubKey, senderPrivKey);
+            db.createAttachment({
+              id: uuidv4(),
+              message_id: messageId,
+              filename: att.filename,
+              mime_type: att.mime_type ?? "application/octet-stream",
+              size_bytes: dataBytes.length,
+              ciphertext: encrypted.ciphertext,
+              nonce: encrypted.nonce,
+              encryption_mode: encryptionMode,
+              created_at: now,
+            });
+          }
+        }
+      }
 
       db.updateThreadTimestamp(thread_id);
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              message_id: messageId,
-              thread_id,
-              sent_to: recipient.handle,
-            }),
-          },
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            message_ids: messageIds,
+            thread_id,
+            sent_to_count: recipients.length,
+            attachments: attachments?.length ?? 0,
+          }),
+        }],
       };
     },
   );

@@ -9,6 +9,10 @@ import type {
   Invite,
   HandleHistory,
   ThreadWithPreview,
+  Attachment,
+  RemoteUser,
+  ServerIdentity,
+  KeyEpoch,
 } from "./types.js";
 
 function now(): number {
@@ -73,6 +77,32 @@ export interface Db {
   getInvite(code: string): Invite | undefined;
   claimInvite(code: string, claimedBy: string): void;
 
+  // Attachments
+  createAttachment(attachment: Attachment): void;
+  getAttachmentsForMessage(messageId: string): Attachment[];
+
+  // Group operations
+  addThreadMember(threadId: string, userId: string, role?: string): void;
+  removeThreadMember(threadId: string, userId: string): void;
+  getThreadMemberCount(threadId: string): number;
+  updateThreadMemberRole(threadId: string, userId: string, role: string): void;
+
+  // Remote users (federation)
+  upsertRemoteUser(user: RemoteUser): void;
+  getRemoteUser(handle: string, server: string): RemoteUser | undefined;
+  getRemoteUserById(id: string): RemoteUser | undefined;
+
+  // Server identity (federation)
+  getServerIdentity(serverUrl: string): ServerIdentity | undefined;
+  setServerIdentity(identity: ServerIdentity): void;
+
+  // Key epochs (forward secrecy)
+  createKeyEpoch(epoch: KeyEpoch): void;
+  getCurrentEpoch(userId: string): KeyEpoch | undefined;
+  getKeyEpoch(userId: string, epoch: number): KeyEpoch | undefined;
+  getKeyEpochs(userId: string): KeyEpoch[];
+  retireEpoch(userId: string, epoch: number): void;
+
   // Raw access
   raw: Database.Database;
 }
@@ -107,6 +137,8 @@ export function createDb(path: string): Db {
 
     CREATE TABLE IF NOT EXISTS threads (
       id TEXT PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'dm',
+      name TEXT NOT NULL DEFAULT '',
       subject TEXT NOT NULL DEFAULT '',
       created_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
@@ -116,6 +148,7 @@ export function createDb(path: string): Db {
     CREATE TABLE IF NOT EXISTS thread_members (
       thread_id TEXT NOT NULL,
       user_id TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'member',
       state TEXT NOT NULL DEFAULT 'active',
       last_read_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (thread_id, user_id)
@@ -132,6 +165,7 @@ export function createDb(path: string): Db {
       nonce TEXT NOT NULL,
       sender_pub_key TEXT NOT NULL,
       encryption_mode TEXT NOT NULL DEFAULT 'e2e',
+      key_epoch INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL
     );
 
@@ -158,11 +192,76 @@ export function createDb(path: string): Db {
       claimed_at INTEGER
     );
 
+    CREATE TABLE IF NOT EXISTS attachments (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+      size_bytes INTEGER NOT NULL DEFAULT 0,
+      ciphertext TEXT NOT NULL,
+      nonce TEXT NOT NULL,
+      encryption_mode TEXT NOT NULL DEFAULT 'server_assisted',
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS remote_users (
+      id TEXT PRIMARY KEY,
+      handle TEXT NOT NULL,
+      server TEXT NOT NULL,
+      display_name TEXT NOT NULL DEFAULT '',
+      public_key TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      UNIQUE(handle, server)
+    );
+
+    CREATE TABLE IF NOT EXISTS server_identity (
+      server_url TEXT PRIMARY KEY,
+      signing_public_key TEXT NOT NULL,
+      signing_private_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS key_epochs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      epoch INTEGER NOT NULL,
+      public_key TEXT NOT NULL,
+      private_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      retired_at INTEGER,
+      UNIQUE(user_id, epoch)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
     CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_user_id);
     CREATE INDEX IF NOT EXISTS idx_thread_members_user ON thread_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_users_handle ON users(handle);
+    CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
+    CREATE INDEX IF NOT EXISTS idx_key_epochs_user ON key_epochs(user_id, epoch);
+    CREATE INDEX IF NOT EXISTS idx_remote_users_handle ON remote_users(handle, server);
   `);
+
+  // Migrations for existing databases
+  const cols = db.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
+  const colNames = new Set(cols.map((c) => c.name));
+  if (!colNames.has("type")) {
+    db.exec("ALTER TABLE threads ADD COLUMN type TEXT NOT NULL DEFAULT 'dm'");
+  }
+  if (!colNames.has("name")) {
+    db.exec("ALTER TABLE threads ADD COLUMN name TEXT NOT NULL DEFAULT ''");
+  }
+
+  // Add key_epoch to messages
+  const msgCols = db.prepare("PRAGMA table_info(messages)").all() as { name: string }[];
+  if (!new Set(msgCols.map((c) => c.name)).has("key_epoch")) {
+    db.exec("ALTER TABLE messages ADD COLUMN key_epoch INTEGER NOT NULL DEFAULT 0");
+  }
+
+  const memberCols = db.prepare("PRAGMA table_info(thread_members)").all() as { name: string }[];
+  const memberColNames = new Set(memberCols.map((c) => c.name));
+  if (!memberColNames.has("role")) {
+    db.exec("ALTER TABLE thread_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+  }
 
   // Prepared statements
   const stmts = {
@@ -191,7 +290,7 @@ export function createDb(path: string): Db {
     ),
 
     insertThread: db.prepare(
-      "INSERT INTO threads (id, subject, created_by, created_at, updated_at) VALUES (@id, @subject, @created_by, @created_at, @updated_at)",
+      "INSERT INTO threads (id, type, name, subject, created_by, created_at, updated_at) VALUES (@id, @type, @name, @subject, @created_by, @created_at, @updated_at)",
     ),
     getThread: db.prepare("SELECT * FROM threads WHERE id = ?"),
     getThreadMembers: db.prepare(
@@ -201,7 +300,7 @@ export function createDb(path: string): Db {
       "SELECT * FROM thread_members WHERE thread_id = ? AND user_id = ?",
     ),
     insertThreadMember: db.prepare(
-      "INSERT INTO thread_members (thread_id, user_id, state, last_read_at) VALUES (@thread_id, @user_id, @state, @last_read_at)",
+      "INSERT OR IGNORE INTO thread_members (thread_id, user_id, role, state, last_read_at) VALUES (@thread_id, @user_id, @role, @state, @last_read_at)",
     ),
     updateThreadTimestamp: db.prepare(
       "UPDATE threads SET updated_at = ? WHERE id = ?",
@@ -215,9 +314,9 @@ export function createDb(path: string): Db {
 
     insertMessage: db.prepare(`
       INSERT INTO messages (id, thread_id, from_user_id, to_user_id, reply_to,
-        priority, ciphertext, nonce, sender_pub_key, encryption_mode, created_at)
+        priority, ciphertext, nonce, sender_pub_key, encryption_mode, key_epoch, created_at)
       VALUES (@id, @thread_id, @from_user_id, @to_user_id, @reply_to,
-        @priority, @ciphertext, @nonce, @sender_pub_key, @encryption_mode, @created_at)
+        @priority, @ciphertext, @nonce, @sender_pub_key, @encryption_mode, @key_epoch, @created_at)
     `),
     getMessagesForThread: db.prepare(
       "SELECT * FROM messages WHERE thread_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
@@ -260,6 +359,67 @@ export function createDb(path: string): Db {
       "UPDATE invites SET claimed_by = ?, claimed_at = ? WHERE code = ?",
     ),
 
+    // Attachments
+    insertAttachment: db.prepare(`
+      INSERT INTO attachments (id, message_id, filename, mime_type, size_bytes,
+        ciphertext, nonce, encryption_mode, created_at)
+      VALUES (@id, @message_id, @filename, @mime_type, @size_bytes,
+        @ciphertext, @nonce, @encryption_mode, @created_at)
+    `),
+    getAttachmentsForMessage: db.prepare(
+      "SELECT * FROM attachments WHERE message_id = ?",
+    ),
+
+    // Group operations
+    removeThreadMember: db.prepare(
+      "DELETE FROM thread_members WHERE thread_id = ? AND user_id = ?",
+    ),
+    getThreadMemberCount: db.prepare(
+      "SELECT COUNT(*) as count FROM thread_members WHERE thread_id = ?",
+    ),
+    updateThreadMemberRole: db.prepare(
+      "UPDATE thread_members SET role = ? WHERE thread_id = ? AND user_id = ?",
+    ),
+
+    // Remote users
+    upsertRemoteUser: db.prepare(`
+      INSERT OR REPLACE INTO remote_users (id, handle, server, display_name, public_key, fetched_at)
+      VALUES (@id, @handle, @server, @display_name, @public_key, @fetched_at)
+    `),
+    getRemoteUser: db.prepare(
+      "SELECT * FROM remote_users WHERE handle = ? AND server = ?",
+    ),
+    getRemoteUserById: db.prepare(
+      "SELECT * FROM remote_users WHERE id = ?",
+    ),
+
+    // Server identity
+    getServerIdentity: db.prepare(
+      "SELECT * FROM server_identity WHERE server_url = ?",
+    ),
+    setServerIdentity: db.prepare(`
+      INSERT OR REPLACE INTO server_identity (server_url, signing_public_key, signing_private_key, created_at)
+      VALUES (@server_url, @signing_public_key, @signing_private_key, @created_at)
+    `),
+
+    // Key epochs
+    insertKeyEpoch: db.prepare(`
+      INSERT INTO key_epochs (user_id, epoch, public_key, private_key, created_at, retired_at)
+      VALUES (@user_id, @epoch, @public_key, @private_key, @created_at, @retired_at)
+    `),
+    getCurrentEpoch: db.prepare(
+      "SELECT * FROM key_epochs WHERE user_id = ? AND retired_at IS NULL ORDER BY epoch DESC LIMIT 1",
+    ),
+    getKeyEpoch: db.prepare(
+      "SELECT * FROM key_epochs WHERE user_id = ? AND epoch = ?",
+    ),
+    getKeyEpochs: db.prepare(
+      "SELECT * FROM key_epochs WHERE user_id = ? ORDER BY epoch ASC",
+    ),
+    retireEpoch: db.prepare(
+      "UPDATE key_epochs SET retired_at = ? WHERE user_id = ? AND epoch = ?",
+    ),
+
     findThreadBetweenUsers: db.prepare(`
       SELECT t.* FROM threads t
       JOIN thread_members tm1 ON tm1.thread_id = t.id AND tm1.user_id = ?
@@ -270,8 +430,9 @@ export function createDb(path: string): Db {
     getThreadsForUser: db.prepare(`
       SELECT
         t.*,
-        other_user.handle AS other_handle,
-        other_user.display_name AS other_display_name,
+        CASE WHEN t.type = 'dm' THEN other_user.handle ELSE NULL END AS other_handle,
+        CASE WHEN t.type = 'dm' THEN other_user.display_name ELSE NULL END AS other_display_name,
+        (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) AS member_count,
         tm.state AS member_state,
         COALESCE(
           (SELECT m.created_at FROM messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1),
@@ -287,8 +448,9 @@ export function createDb(path: string): Db {
         ) AS unread_count
       FROM threads t
       JOIN thread_members tm ON tm.thread_id = t.id AND tm.user_id = ?
-      JOIN thread_members tm2 ON tm2.thread_id = t.id AND tm2.user_id != ?
-      JOIN users other_user ON other_user.id = tm2.user_id
+      LEFT JOIN thread_members tm2 ON tm2.thread_id = t.id AND tm2.user_id != ? AND t.type = 'dm'
+      LEFT JOIN users other_user ON other_user.id = tm2.user_id
+      GROUP BY t.id
       ORDER BY last_message_at DESC
     `),
   };
@@ -468,6 +630,82 @@ export function createDb(path: string): Db {
 
     claimInvite(code: string, claimedBy: string): void {
       stmts.claimInvite.run(claimedBy, now(), code);
+    },
+
+    // Remote users
+    upsertRemoteUser(user: RemoteUser): void {
+      stmts.upsertRemoteUser.run(user);
+    },
+
+    getRemoteUser(handle: string, server: string): RemoteUser | undefined {
+      return stmts.getRemoteUser.get(handle, server) as RemoteUser | undefined;
+    },
+
+    getRemoteUserById(id: string): RemoteUser | undefined {
+      return stmts.getRemoteUserById.get(id) as RemoteUser | undefined;
+    },
+
+    // Server identity
+    getServerIdentity(serverUrl: string): ServerIdentity | undefined {
+      return stmts.getServerIdentity.get(serverUrl) as ServerIdentity | undefined;
+    },
+
+    setServerIdentity(identity: ServerIdentity): void {
+      stmts.setServerIdentity.run(identity);
+    },
+
+    // Key epochs
+    createKeyEpoch(epoch: KeyEpoch): void {
+      stmts.insertKeyEpoch.run(epoch);
+    },
+
+    getCurrentEpoch(userId: string): KeyEpoch | undefined {
+      return stmts.getCurrentEpoch.get(userId) as KeyEpoch | undefined;
+    },
+
+    getKeyEpoch(userId: string, epoch: number): KeyEpoch | undefined {
+      return stmts.getKeyEpoch.get(userId, epoch) as KeyEpoch | undefined;
+    },
+
+    getKeyEpochs(userId: string): KeyEpoch[] {
+      return stmts.getKeyEpochs.all(userId) as KeyEpoch[];
+    },
+
+    retireEpoch(userId: string, epoch: number): void {
+      stmts.retireEpoch.run(now(), userId, epoch);
+    },
+
+    // Attachments
+    createAttachment(attachment: Attachment): void {
+      stmts.insertAttachment.run(attachment);
+    },
+
+    getAttachmentsForMessage(messageId: string): Attachment[] {
+      return stmts.getAttachmentsForMessage.all(messageId) as Attachment[];
+    },
+
+    // Group operations
+    addThreadMember(threadId: string, userId: string, role = "member"): void {
+      stmts.insertThreadMember.run({
+        thread_id: threadId,
+        user_id: userId,
+        role,
+        state: "active",
+        last_read_at: 0,
+      });
+    },
+
+    removeThreadMember(threadId: string, userId: string): void {
+      stmts.removeThreadMember.run(threadId, userId);
+    },
+
+    getThreadMemberCount(threadId: string): number {
+      const row = stmts.getThreadMemberCount.get(threadId) as { count: number };
+      return row.count;
+    },
+
+    updateThreadMemberRole(threadId: string, userId: string, role: string): void {
+      stmts.updateThreadMemberRole.run(role, threadId, userId);
     },
 
     // Raw access

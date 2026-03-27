@@ -52,10 +52,18 @@ export function registerThreadsTool(
             if (lastMsg.encryption_mode === "server_assisted") {
               let decrypted: string | null;
               if (lastMsg.to_user_id === user.id) {
-                decrypted = decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, user.private_key);
+                const epoch = lastMsg.key_epoch ? db.getKeyEpoch(user.id, lastMsg.key_epoch) : null;
+                const privKey = epoch?.private_key ?? user.private_key;
+                decrypted = decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, privKey);
               } else {
                 const recipient = db.getUserById(lastMsg.to_user_id);
-                decrypted = recipient ? decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, recipient.private_key) : null;
+                if (recipient) {
+                  const epoch = lastMsg.key_epoch ? db.getKeyEpoch(recipient.id, lastMsg.key_epoch) : null;
+                  const privKey = epoch?.private_key ?? recipient.private_key;
+                  decrypted = decryptMessage(lastMsg.ciphertext, lastMsg.nonce, lastMsg.sender_pub_key, privKey);
+                } else {
+                  decrypted = null;
+                }
               }
               lastMessageBody = decrypted ?? "[Decryption failed]";
             } else {
@@ -64,16 +72,24 @@ export function registerThreadsTool(
           }
         }
 
-        return {
+        const base: Record<string, unknown> = {
           id: t.id,
-          subject: t.subject,
-          other_handle: t.other_handle,
-          other_display_name: t.other_display_name,
+          type: t.type,
           last_message_body: lastMessageBody,
           last_message_at: t.last_message_at,
           unread_count: t.unread_count,
           member_state: t.member_state,
         };
+
+        if (t.type === "group") {
+          base.name = t.name;
+          base.member_count = t.member_count;
+        } else {
+          base.other_handle = t.other_handle;
+          base.other_display_name = t.other_display_name;
+        }
+
+        return base;
       });
 
       // Sort

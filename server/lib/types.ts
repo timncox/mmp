@@ -16,6 +16,8 @@ export interface User {
 
 export interface Thread {
   id: string;
+  type: "dm" | "group";
+  name: string;
   subject: string;
   created_by: string;
   created_at: number;
@@ -25,6 +27,7 @@ export interface Thread {
 export interface ThreadMember {
   thread_id: string;
   user_id: string;
+  role: "owner" | "admin" | "member";
   state: "active" | "archived" | "muted" | "starred";
   last_read_at: number;
 }
@@ -40,6 +43,7 @@ export interface Message {
   nonce: string;
   sender_pub_key: string;
   encryption_mode: "e2e" | "server_assisted";
+  key_epoch: number;
   created_at: number;
 }
 
@@ -70,9 +74,22 @@ export interface HandleHistory {
   redirects_until: number;
 }
 
+export interface Attachment {
+  id: string;
+  message_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  ciphertext: string;
+  nonce: string;
+  encryption_mode: "e2e" | "server_assisted";
+  created_at: number;
+}
+
 export interface ThreadWithPreview extends Thread {
-  other_handle: string;
-  other_display_name: string;
+  other_handle: string | null;
+  other_display_name: string | null;
+  member_count: number;
   last_message_body: string | null;
   last_message_at: number;
   unread_count: number;
@@ -103,4 +120,70 @@ export interface EncryptedPayload {
   ciphertext: string;
   nonce: string;
   sender_public_key: string;
+}
+
+// --- Federation types ---
+
+export interface RemoteUser {
+  id: string;
+  handle: string;
+  server: string;
+  display_name: string;
+  public_key: string;
+  fetched_at: number;
+}
+
+export interface ServerIdentity {
+  server_url: string;
+  signing_public_key: string;
+  signing_private_key: string;
+  created_at: number;
+}
+
+export interface FederationEnvelope {
+  from_handle: string;
+  from_server: string;
+  to_handle: string;
+  ciphertext: string;
+  nonce: string;
+  sender_pub_key: string;
+  encryption_mode: "e2e" | "server_assisted";
+  key_epoch: number;
+  priority: Message["priority"];
+  attachments?: {
+    filename: string;
+    mime_type: string;
+    size_bytes: number;
+    ciphertext: string;
+    nonce: string;
+  }[];
+  timestamp: number;
+  signature: string;
+}
+
+export interface WellKnownMMP {
+  protocol: "mmp";
+  version: string;
+  mcp_endpoint: string;
+  federation_endpoint: string;
+  signing_public_key: string;
+  server_name: string;
+}
+
+// --- Key epoch types ---
+
+export interface KeyEpoch {
+  id: number;
+  user_id: string;
+  epoch: number;
+  public_key: string;
+  private_key: string;
+  created_at: number;
+  retired_at: number | null;
+}
+
+export interface ParsedHandle {
+  user: string;
+  server: string | null;
+  isRemote: boolean;
 }

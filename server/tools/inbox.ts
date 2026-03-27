@@ -57,33 +57,46 @@ export function registerInboxTool(
         let body: string | null;
         if (msg.encryption_mode === "server_assisted") {
           if (msg.to_user_id === user.id) {
-            body = decryptMessage(
-              msg.ciphertext,
-              msg.nonce,
-              msg.sender_pub_key,
-              user.private_key,
-            );
+            const epoch = msg.key_epoch ? db.getKeyEpoch(user.id, msg.key_epoch) : null;
+            const privKey = epoch?.private_key ?? user.private_key;
+            body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
           } else {
             const recipient = db.getUserById(msg.to_user_id);
-            body = recipient
-              ? decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, recipient.private_key)
-              : null;
+            if (recipient) {
+              const epoch = msg.key_epoch ? db.getKeyEpoch(recipient.id, msg.key_epoch) : null;
+              const privKey = epoch?.private_key ?? recipient.private_key;
+              body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
+            } else {
+              body = null;
+            }
           }
         } else {
           body = "[E2E encrypted — open in MCP App inbox to read]";
         }
 
+        // Get attachment metadata
+        const attachments = db.getAttachmentsForMessage(msg.id);
+        const attachmentInfo = attachments.length > 0
+          ? attachments.map((a) => ({ filename: a.filename, mime_type: a.mime_type, size_bytes: a.size_bytes }))
+          : undefined;
+
+        // Get thread type for context
+        const thread = db.getThread(msg.thread_id);
+
         decryptedMessages.push({
           id: msg.id,
           thread_id: msg.thread_id,
+          thread_type: thread?.type ?? "dm",
+          thread_name: thread?.type === "group" ? thread.name : undefined,
           from_handle: getHandle(msg.from_user_id),
           to_handle: getHandle(msg.to_user_id),
           body,
           priority: msg.priority,
           encryption_mode: msg.encryption_mode,
           reply_to: msg.reply_to,
+          attachments: attachmentInfo,
           created_at: msg.created_at,
-        });
+        } as any);
       }
 
       return {
