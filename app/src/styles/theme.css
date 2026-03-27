@@ -52,8 +52,8 @@ html, body {
   flex-direction: column;
   max-width: 600px;
   margin: 0 auto;
-  min-height: 100vh;
-  padding: 0 12px;
+  min-height: 480px;
+  padding: 16px 16px;
 }
 
 /* Tab Bar */

@@ -35,7 +35,7 @@ let lastUnreadCount = 0;
 // ---------------------------------------------------------------------------
 // MCP App instance
 // ---------------------------------------------------------------------------
-export const app = new App({ name: "MMP Inbox", version: "1.0.0" });
+export const app = new App({ name: "MMP Inbox", version: "1.0.0", autoResize: true });
 
 // ---------------------------------------------------------------------------
 // View router
