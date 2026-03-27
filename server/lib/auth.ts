@@ -9,7 +9,19 @@ export function extractToken(req: Request): string | null {
 }
 
 export function authenticateUser(token: string | null, db: Db): User | null {
-  if (!token) return null;
-  const hash = hashToken(token);
-  return db.getUserByTokenHash(hash) ?? null;
+  if (token) {
+    const hash = hashToken(token);
+    return db.getUserByTokenHash(hash) ?? null;
+  }
+
+  // Auto-auth: if no token and exactly one user exists, authenticate as them.
+  // This makes single-user local servers work without token-in-URL config.
+  const users = db.raw
+    .prepare("SELECT * FROM users LIMIT 2")
+    .all() as User[];
+  if (users.length === 1) {
+    return users[0];
+  }
+
+  return null;
 }
