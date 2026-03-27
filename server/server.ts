@@ -25,6 +25,7 @@ import { registerMarkReadTool } from "./tools/mark-read.js";
 import { registerArchiveTool } from "./tools/archive.js";
 import { registerStarTool } from "./tools/star.js";
 import { registerMuteTool } from "./tools/mute.js";
+import { registerWhoamiTool } from "./tools/whoami.js";
 
 // ---------------------------------------------------------------------------
 // Database
@@ -62,6 +63,7 @@ export function createMcpServer(getUser: () => User | null): McpServer {
   registerArchiveTool(mcp, db, getUser);
   registerStarTool(mcp, db, getUser);
   registerMuteTool(mcp, db, getUser);
+  registerWhoamiTool(mcp, db, getUser);
 
   return mcp;
 }
