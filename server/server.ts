@@ -243,11 +243,19 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-// Handle GET and DELETE for SSE streams
+// Handle GET for SSE streams — session required, or return server info
 app.get("/mcp", async (req, res) => {
   const sessionId = req.headers["mcp-session-id"] as string | undefined;
   if (!sessionId || !transports.has(sessionId)) {
-    res.status(400).json({ error: "Invalid or missing session ID" });
+    // No session — return server info instead of an error
+    // This helps MCP clients that probe the endpoint before initializing
+    res.status(200).json({
+      name: "MMP-Messaging",
+      version: "1.0.0",
+      protocol: "mcp",
+      transport: "streamable-http",
+      instructions: "Send a POST with a JSON-RPC initialize request to begin a session.",
+    });
     return;
   }
   const transport = transports.get(sessionId)!;
