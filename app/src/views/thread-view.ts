@@ -20,9 +20,12 @@ interface MessageData {
 
 interface ThreadDetail {
   id: string;
+  type?: "dm" | "group";
+  name?: string;
   subject: string;
   messages: MessageData[];
-  other_handle: string;
+  members?: { handle: string; display_name: string; role: string }[];
+  other_handle?: string;
   other_public_key?: string;
   other_client_public_key?: string;
   member_state: string;
@@ -156,37 +159,45 @@ export function renderThreadView(
   const aiDraftBtn = aiActions.querySelector("#ai-draft-btn") as HTMLButtonElement;
   const aiSummarizeBtn = aiActions.querySelector("#ai-summarize-btn") as HTMLButtonElement;
 
-  aiDraftBtn.addEventListener("click", async () => {
+  async function aiAction(prompt: string): Promise<void> {
     if (!threadData) return;
     const contextYAML = buildThreadContext(threadData);
-    try {
-      await app.updateModelContext({
-        content: [{ type: "text", text: contextYAML }],
-      });
-      await app.sendMessage({
-        role: "user",
-        content: { type: "text", text: "Draft a reply to this thread" },
-      });
-    } catch {
-      // Ignore
-    }
-  });
 
-  aiSummarizeBtn.addEventListener("click", async () => {
-    if (!threadData) return;
-    const contextYAML = buildThreadContext(threadData);
+    // Try the MCP App extension API first
     try {
-      await app.updateModelContext({
-        content: [{ type: "text", text: contextYAML }],
-      });
-      await app.sendMessage({
-        role: "user",
-        content: { type: "text", text: "Summarize this thread" },
-      });
+      if (typeof app.updateModelContext === "function" && typeof app.sendMessage === "function") {
+        await app.updateModelContext({
+          content: [{ type: "text", text: contextYAML }],
+        });
+        await app.sendMessage({
+          role: "user",
+          content: { type: "text", text: prompt },
+        });
+        return;
+      }
     } catch {
-      // Ignore
+      // Fall through to fallback
     }
-  });
+
+    // Fallback: copy to clipboard and show instruction
+    const fullPrompt = `${contextYAML}\n\n${prompt}`;
+    try {
+      await navigator.clipboard.writeText(fullPrompt);
+      const notice = document.createElement("div");
+      notice.style.cssText = "padding:8px 12px;background:#18181b;border:1px solid #3b82f6;border-radius:8px;color:#7dd3fc;font-size:13px;margin:8px 0;";
+      notice.textContent = "Copied to clipboard — paste into your AI chat to get a response.";
+      aiActions.appendChild(notice);
+      setTimeout(() => notice.remove(), 4000);
+    } catch {
+      // Last resort: put it in the reply box
+      const replyInput = replyBox.querySelector("#reply-input") as HTMLTextAreaElement;
+      replyInput.value = fullPrompt;
+      replyInput.focus();
+    }
+  }
+
+  aiDraftBtn.addEventListener("click", () => aiAction("Draft a reply to this thread"));
+  aiSummarizeBtn.addEventListener("click", () => aiAction("Summarize this thread"));
 
   // Send reply
   const replyInput = replyBox.querySelector("#reply-input") as HTMLTextAreaElement;
@@ -339,8 +350,11 @@ export function renderThreadView(
 
       // Update header
       const subjectEl = header.querySelector("#thread-subject")!;
-      subjectEl.textContent =
-        parsed.subject || `@${parsed.other_handle}`;
+      if (parsed.type === "group") {
+        subjectEl.textContent = parsed.name || parsed.subject || "Group";
+      } else {
+        subjectEl.textContent = parsed.subject || `@${parsed.other_handle || "unknown"}`;
+      }
 
       // Update star state
       if (parsed.member_state === "starred") {
