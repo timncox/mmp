@@ -2,7 +2,7 @@
 
 Person-to-person messaging through AI assistants. Send and receive encrypted messages using any MCP-capable client — Claude, ChatGPT, Copilot, Goose, and more.
 
-**Live at [mmp.chat](https://mmp.chat)** | [Protocol Spec](https://mmp.chat/spec)
+**Live at [mmp.chat](https://mmp.chat)** | [Protocol Spec](https://mmp.chat/spec) | [GitHub](https://github.com/timncox/mmp)
 
 ## What is MMP?
 
@@ -27,10 +27,16 @@ Your AI assistant becomes the interface. No app to install, no account to create
 - **Federation** — `@user@server.com` addressing, server-to-server delivery with Ed25519 signed requests
 - **Group messaging** — create groups, manage members, fan-out encrypted delivery
 - **File attachments** — send base64-encoded files with messages, encrypted per-recipient
+- **Webhooks** — real-time push notifications on new messages, HMAC-SHA256 signed
+- **Agent-to-agent messaging** — agents are first-class citizens, cross-platform coordination
+- **Session upgrades** — register or recover and start messaging immediately, no reconnect needed
 - **Works everywhere** — any MCP client over Streamable HTTP transport
-- **MCP App inbox** — browser-based UI with client-side crypto for MCP clients that support apps
+- **MCP App inbox** — browser-based UI with client-side crypto, group chat creation, AI draft/summarize
+- **REST API** — `/api/digest` endpoint for automation without the MCP protocol
 - **Invite system** — generate invite links to onboard friends
 - **AI-native recovery** — tokens saved to AI memory, recovery codes as fallback
+- **Rate limiting** — per-IP and per-server limits to prevent abuse
+- **SSRF protection** — webhook URLs validated against internal/localhost addresses
 
 ## Quick Start
 
@@ -44,7 +50,7 @@ URL: https://mmp.chat/mcp
 
 Then tell your AI: **"Register as @yourname on MMP"**
 
-You'll get a token (saved automatically) and a recovery code. That's it — you're on MMP.
+Your session is authenticated immediately — start messaging right away. Save the token for future sessions.
 
 ### Self-Host
 
@@ -72,14 +78,15 @@ docker run -p 3777:3777 -v mmp-data:/data -e MMP_SERVER_URL=https://mmp.example.
 | `PORT` | `3777` | Server port |
 | `MMP_DB_PATH` | `./mmp.db` | SQLite database path |
 | `MMP_SERVER_URL` | `http://localhost:3777` | Public URL (required for federation) |
+| `MMP_ADMIN_SECRET` | — | Secret for admin endpoints (recovery reset) |
 
-## MCP Tools
+## MCP Tools (28)
 
 ### Identity
 | Tool | Description |
 |------|-------------|
-| `mmp-register` | Create an account, get a token and recovery code |
-| `mmp-recover` | Recover access with your recovery code |
+| `mmp-register` | Create an account — session authenticates immediately |
+| `mmp-recover` | Recover access with recovery code — session authenticates immediately |
 | `mmp-whoami` | Check your identity and auth status |
 | `mmp-change_handle` | Change your @handle (30-day redirect) |
 | `mmp-set_profile` | Update display name, bio, status, privacy |
@@ -87,11 +94,11 @@ docker run -p 3777:3777 -v mmp-data:/data -e MMP_SERVER_URL=https://mmp.example.
 ### Messaging
 | Tool | Description |
 |------|-------------|
-| `mmp-send` | Send a message — local DMs, groups, or federated (`@user@server`) |
-| `mmp-reply` | Reply in a thread, with optional file attachments |
+| `mmp-send` | Send a message — local DMs, groups, or federated (`@user@server`) with attachments |
+| `mmp-reply` | Reply in a thread with optional attachments and priority |
 | `mmp-inbox` | Get your messages (filterable by time, unread) |
-| `mmp-threads` | List threads with previews and unread counts |
-| `mmp-thread` | View a single thread with all messages and attachments |
+| `mmp-threads` | List threads with previews, unread counts, starred status |
+| `mmp-thread` | View a single thread with all messages, attachments, and members |
 | `mmp-digest` | Get a summary digest of recent activity |
 
 ### Groups
@@ -105,20 +112,21 @@ docker run -p 3777:3777 -v mmp-data:/data -e MMP_SERVER_URL=https://mmp.example.
 | Tool | Description |
 |------|-------------|
 | `mmp-rotate-keys` | Rotate encryption keys for forward secrecy |
-| `mmp-set-webhook` | Register a webhook URL for real-time push notifications |
+| `mmp-set-webhook` | Register/check/remove a webhook for real-time push |
 
 ### Organization
 | Tool | Description |
 |------|-------------|
-| `mmp-contacts` | Manage your contact list |
+| `mmp-contacts` | List your contacts |
 | `mmp-add_contact` | Add someone to contacts |
+| `mmp-remove_contact` | Remove someone from contacts |
 | `mmp-lookup` | Look up a user's profile by handle |
 | `mmp-search-users` | Search for users |
-| `mmp-block` | Block/unblock a user |
+| `mmp-block` | Block or unblock a user (`action: "block"` / `"unblock"`) |
 | `mmp-mark-read` | Mark a thread as read |
-| `mmp-archive` | Archive a thread |
-| `mmp-star` | Star/unstar a thread |
-| `mmp-mute` | Mute/unmute a thread |
+| `mmp-archive` | Archive or unarchive a thread (`action: "archive"` / `"unarchive"`) |
+| `mmp-star` | Star/unstar a thread (independent of mute/archive) |
+| `mmp-mute` | Mute or unmute a thread (`action: "mute"` / `"unmute"`) |
 | `mmp-invite` | Generate an invite link |
 | `mmp-open-inbox` | Open the MCP App inbox UI |
 
@@ -162,15 +170,16 @@ Claude: Message sent via federation to @alice@other-server.com
 1. **Discovery**: Servers publish `/.well-known/mmp.json` with their MCP endpoint, federation endpoint, and Ed25519 signing key
 2. **User lookup**: `GET /federation/lookup?handle=alice` returns public profile + current encryption key
 3. **Message delivery**: `POST /federation/deliver` accepts an encrypted envelope signed by the sending server
-4. **Verification**: Receiving server fetches the sender's `.well-known/mmp.json` to verify the Ed25519 signature
+4. **Verification**: Receiving server fetches the sender's `.well-known/mmp.json` to verify the Ed25519 signature against the raw request body
 
 ### Security model
 
 - All server-to-server requests are signed with Ed25519 (not HMAC — no shared secrets)
+- Signatures verified against raw request body bytes (not re-serialized JSON)
 - Messages are encrypted with the recipient's public key before transit
-- The sending server encrypts; the receiving server stores the ciphertext
 - Remote users are cached locally but keys are re-fetched on send
 - Server identity keys are generated on first boot and stored in the database
+- Rate limiting: 30 requests/min per source server
 
 ### Setting up federation
 
@@ -229,7 +238,20 @@ When a message arrives, MMP POSTs to your URL:
 }
 ```
 
-Requests include an `X-MMP-Signature` header (HMAC-SHA256 of the body using your webhook secret) and `X-MMP-Event` header. Use `mmp-set-webhook` with `action: "status"` to check your current webhook, or `action: "remove"` to delete it.
+Requests include an `X-MMP-Signature` header (HMAC-SHA256 of the body using your webhook secret) and `X-MMP-Event` header. Webhook URLs must be HTTPS and are validated against internal/localhost addresses (SSRF protection).
+
+## REST API
+
+For automation and scheduled agents, MMP provides a REST endpoint that doesn't require the MCP protocol:
+
+```bash
+# Get a digest of recent messages
+curl "https://mmp.chat/api/digest?token=sk_YOUR_TOKEN&period=1h"
+
+# Periods: 1h, today, 24h, week
+```
+
+Returns decrypted messages as JSON — perfect for cron jobs, monitoring, or agents that just need to `curl`.
 
 ## Agent-to-Agent Messaging
 
@@ -257,15 +279,16 @@ mmp/
 │   │   ├── crypto.ts     # NaCl encryption/decryption
 │   │   ├── federation.ts # Handle parsing, discovery, S2S auth
 │   │   ├── webhooks.ts   # Webhook dispatch (HMAC-signed push)
+│   │   ├── rate-limit.ts # In-memory rate limiter
 │   │   ├── auth.ts       # Token extraction + authentication
 │   │   └── types.ts      # TypeScript interfaces
 │   ├── routes/
 │   │   └── federation.ts # .well-known, /federation/deliver, /federation/lookup
-│   └── tools/            # One file per MCP tool (26 tools)
+│   └── tools/            # One file per MCP tool (28 tools)
 ├── app/                  # MCP App inbox UI (Vite + TypeScript)
 │   └── src/
 │       ├── crypto/       # Client-side NaCl for E2E mode
-│       └── views/        # Inbox, thread, compose, settings views
+│       └── views/        # Inbox, thread, compose (DM + group), settings
 ├── spec/                 # Protocol specification
 └── Dockerfile            # Production container
 ```
