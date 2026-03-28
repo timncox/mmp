@@ -28,7 +28,8 @@ export interface ThreadMember {
   thread_id: string;
   user_id: string;
   role: "owner" | "admin" | "member";
-  state: "active" | "archived" | "muted" | "starred";
+  state: "active" | "archived" | "muted";
+  starred: number; // 0 or 1 (SQLite boolean)
   last_read_at: number;
 }
 
@@ -94,6 +95,7 @@ export interface ThreadWithPreview extends Thread {
   last_message_at: number;
   unread_count: number;
   member_state: ThreadMember["state"];
+  starred: number;
 }
 
 export interface DecryptedMessage {

@@ -10,11 +10,12 @@ export function registerMuteTool(
 ): void {
   server.tool(
     "mmp-mute",
-    "Mute or unmute a thread (toggle). Primarily for MCP App use.",
+    "Mute or unmute a thread. Use action 'unmute' to restore.",
     {
       thread_id: z.string().describe("Thread ID to mute/unmute"),
+      action: z.enum(["mute", "unmute"]).optional().default("mute").describe("'mute' or 'unmute'"),
     },
-    async ({ thread_id }) => {
+    async ({ thread_id, action }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -31,20 +32,14 @@ export function registerMuteTool(
         };
       }
 
-      const newState = member.state === "muted" ? "active" : "muted";
+      const newState = action === "unmute" ? "active" : "muted";
       db.updateThreadMemberState(thread_id, user.id, newState);
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              thread_id,
-              state: newState,
-              message: newState === "muted" ? "Thread muted." : "Thread unmuted.",
-            }),
-          },
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({ thread_id, state: newState }),
+        }],
       };
     },
   );

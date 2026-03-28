@@ -75,8 +75,22 @@ export function registerDigestTool(
       }> = [];
 
       for (const thread of threads) {
-        const messages = db.getMessagesForThread(thread.id, 500);
-        const periodMessages = messages.filter((m) => m.created_at >= sinceTs);
+        const rawMessages = db.getMessagesForThread(thread.id, 500);
+        let periodMessages = rawMessages.filter((m) => m.created_at >= sinceTs);
+
+        // Deduplicate fan-out messages for groups
+        if (thread.type === "group") {
+          const seen = new Set<string>();
+          periodMessages = periodMessages.filter((msg) => {
+            if (msg.from_user_id === user.id || msg.to_user_id === user.id) {
+              const key = `${msg.from_user_id}:${msg.created_at}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }
+            return false;
+          });
+        }
 
         if (periodMessages.length === 0) continue;
 
@@ -89,10 +103,18 @@ export function registerDigestTool(
           let body: string | null;
           if (msg.encryption_mode === "server_assisted") {
             if (msg.to_user_id === user.id) {
-              body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, user.private_key);
+              const epoch = msg.key_epoch ? db.getKeyEpoch(user.id, msg.key_epoch) : null;
+              const privKey = epoch?.private_key ?? user.private_key;
+              body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
             } else {
               const recipient = db.getUserById(msg.to_user_id);
-              body = recipient ? decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, recipient.private_key) : null;
+              if (recipient) {
+                const epoch = msg.key_epoch ? db.getKeyEpoch(recipient.id, msg.key_epoch) : null;
+                const privKey = epoch?.private_key ?? recipient.private_key;
+                body = decryptMessage(msg.ciphertext, msg.nonce, msg.sender_pub_key, privKey);
+              } else {
+                body = null;
+              }
             }
           } else {
             body = "[E2E encrypted]";

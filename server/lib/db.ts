@@ -156,6 +156,7 @@ export function createDb(path: string): Db {
       user_id TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'member',
       state TEXT NOT NULL DEFAULT 'active',
+      starred INTEGER NOT NULL DEFAULT 0,
       last_read_at INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (thread_id, user_id)
     );
@@ -275,6 +276,11 @@ export function createDb(path: string): Db {
   const memberColNames = new Set(memberCols.map((c) => c.name));
   if (!memberColNames.has("role")) {
     db.exec("ALTER TABLE thread_members ADD COLUMN role TEXT NOT NULL DEFAULT 'member'");
+  }
+  if (!memberColNames.has("starred")) {
+    db.exec("ALTER TABLE thread_members ADD COLUMN starred INTEGER NOT NULL DEFAULT 0");
+    // Migrate old "starred" state to the new flag
+    db.exec("UPDATE thread_members SET starred = 1, state = 'active' WHERE state = 'starred'");
   }
 
   // Prepared statements
@@ -457,6 +463,7 @@ export function createDb(path: string): Db {
         CASE WHEN t.type = 'dm' THEN other_user.display_name ELSE NULL END AS other_display_name,
         (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) AS member_count,
         tm.state AS member_state,
+        tm.starred AS starred,
         COALESCE(
           (SELECT m.created_at FROM messages m WHERE m.thread_id = t.id ORDER BY m.created_at DESC LIMIT 1),
           t.created_at

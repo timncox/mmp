@@ -32,6 +32,7 @@ interface ThreadData {
   last_message_at: number;
   unread_count: number;
   member_state: string;
+  starred?: boolean;
   priority?: string;
   encryption_mode?: string;
 }
@@ -136,8 +137,8 @@ export function renderThreadList(container: HTMLElement, app: App): void {
 
       // Filter by tab
       const filtered = threads.filter((t) => {
-        if (activeTab === "active") return t.member_state === "active";
-        if (activeTab === "starred") return t.member_state === "starred";
+        if (activeTab === "active") return t.member_state === "active" || t.member_state === "muted";
+        if (activeTab === "starred") return !!t.starred;
         if (activeTab === "archived") return t.member_state === "archived";
         return true;
       });

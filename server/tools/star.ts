@@ -10,7 +10,7 @@ export function registerStarTool(
 ): void {
   server.tool(
     "mmp-star",
-    "Star or unstar a thread (toggle). Primarily for MCP App use.",
+    "Star or unstar a thread (toggle). Starred is independent of mute/archive state.",
     {
       thread_id: z.string().describe("Thread ID to star/unstar"),
     },
@@ -31,20 +31,19 @@ export function registerStarTool(
         };
       }
 
-      const newState = member.state === "starred" ? "active" : "starred";
-      db.updateThreadMemberState(thread_id, user.id, newState);
+      const newStarred = member.starred ? 0 : 1;
+      db.raw.prepare("UPDATE thread_members SET starred = ? WHERE thread_id = ? AND user_id = ?")
+        .run(newStarred, thread_id, user.id);
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              thread_id,
-              state: newState,
-              message: newState === "starred" ? "Thread starred." : "Thread unstarred.",
-            }),
-          },
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            thread_id,
+            starred: !!newStarred,
+            state: member.state,
+          }),
+        }],
       };
     },
   );

@@ -55,6 +55,7 @@ export function registerSetWebhookTool(
               url: existing.url,
               events: existing.events.split(","),
               created_at: existing.created_at,
+              created_at_iso: new Date(existing.created_at * 1000).toISOString(),
             }),
           }],
         };

@@ -35,7 +35,9 @@ export function registerThreadsTool(
       let threads: ThreadWithPreview[] = db.getThreadsForUser(user.id);
 
       // Filter by status
-      if (status) {
+      if (status === "starred") {
+        threads = threads.filter((t) => t.starred);
+      } else if (status) {
         threads = threads.filter((t) => t.member_state === status);
       }
 
@@ -80,6 +82,7 @@ export function registerThreadsTool(
           last_message_at_iso: new Date(t.last_message_at * 1000).toISOString(),
           unread_count: t.unread_count,
           member_state: t.member_state,
+          starred: !!t.starred,
         };
 
         if (t.type === "group") {

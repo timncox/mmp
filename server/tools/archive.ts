@@ -10,12 +10,14 @@ export function registerArchiveTool(
 ): void {
   server.tool(
     "mmp-archive",
-    "Archive or unarchive a thread. Primarily for MCP App use.",
+    "Archive or unarchive a thread. Use action 'unarchive' to restore.",
     {
       thread_id: z.string().describe("Thread ID to archive/unarchive"),
-      undo: z.boolean().optional().default(false).describe("If true, unarchive (set back to active)"),
+      action: z.enum(["archive", "unarchive"]).optional().default("archive").describe("'archive' or 'unarchive'"),
+      // Keep backward compat
+      undo: z.boolean().optional().describe("Deprecated — use action instead"),
     },
-    async ({ thread_id, undo }) => {
+    async ({ thread_id, action, undo }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -32,20 +34,18 @@ export function registerArchiveTool(
         };
       }
 
-      const newState = undo ? "active" : "archived";
+      const shouldUnarchive = action === "unarchive" || undo === true;
+      const newState = shouldUnarchive ? "active" : "archived";
       db.updateThreadMemberState(thread_id, user.id, newState);
 
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              thread_id,
-              state: newState,
-              message: undo ? "Thread unarchived." : "Thread archived.",
-            }),
-          },
-        ],
+        content: [{
+          type: "text" as const,
+          text: JSON.stringify({
+            thread_id,
+            state: newState,
+          }),
+        }],
       };
     },
   );
