@@ -88,6 +88,15 @@ export function registerOpenInboxTool(
     RESOURCE_URI,
     {
       description: "Interactive MMP inbox interface",
+      _meta: {
+        ui: {
+          domain: "https://mmp.chat",
+          csp: {
+            connectDomains: ["https://mmp.chat"],
+            resourceDomains: [],
+          },
+        },
+      },
     },
     async () => {
       const html = loadInboxHtml();
