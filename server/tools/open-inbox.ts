@@ -97,6 +97,15 @@ export function registerOpenInboxTool(
             uri: RESOURCE_URI,
             mimeType: RESOURCE_MIME_TYPE,
             text: html,
+            _meta: {
+              ui: {
+                domain: "https://mmp.chat",
+                csp: {
+                  connectDomains: ["https://mmp.chat"],
+                  resourceDomains: [],
+                },
+              },
+            },
           },
         ],
       };

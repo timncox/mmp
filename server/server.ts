@@ -1,6 +1,5 @@
 import express from "express";
 import { randomUUID } from "crypto";
-import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createDb, type Db } from "./lib/db.js";
@@ -49,24 +48,13 @@ export const db: Db = createDb(dbPath);
 // ---------------------------------------------------------------------------
 const SERVER_URL = process.env.MMP_SERVER_URL || `http://localhost:${parseInt(process.env.PORT || "3777", 10)}`;
 
-// ---------------------------------------------------------------------------
-// Widget template
-// ---------------------------------------------------------------------------
-const WIDGET_TEMPLATE_URI = "ui://mmp/inbox.html";
-let widgetHtml: string;
-try {
-  widgetHtml = readFileSync(new URL("../app/dist/inbox.html", import.meta.url), "utf-8");
-} catch {
-  widgetHtml = "<div>MMP Inbox widget not built. Run: cd app && npm run build</div>";
-}
-
 export function createMcpServer(
   getUser: () => User | null,
   setUser?: (u: User) => void,
 ): McpServer {
   const mcp = new McpServer(
     { name: "MMP-Messaging", version: "1.1.0" },
-    { capabilities: { tools: {}, resources: {} } },
+    { capabilities: { tools: {} } },
   );
 
   // Unauthenticated tools (with session upgrade on register/recover)
@@ -98,28 +86,6 @@ export function createMcpServer(
   registerRotateKeysTool(mcp, db, getUser);
   registerSetWebhookTool(mcp, db, getUser);
   registerDownloadTool(mcp, db, getUser);
-
-  // Widget resource for ChatGPT app
-  mcp.resource(
-    "mmp-inbox-widget",
-    WIDGET_TEMPLATE_URI,
-    async () => ({
-      contents: [{
-        uri: WIDGET_TEMPLATE_URI,
-        mimeType: "text/html;profile=mcp-app",
-        text: widgetHtml,
-        _meta: {
-          ui: {
-            domain: "https://mmp.chat",
-            csp: {
-              connectDomains: ["https://mmp.chat"],
-              resourceDomains: [],
-            },
-          },
-        },
-      }],
-    }),
-  );
 
   return mcp;
 }
