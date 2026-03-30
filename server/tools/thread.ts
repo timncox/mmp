@@ -9,13 +9,13 @@ export function registerThreadTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-thread",
-    "Get a single thread (DM or group) with all its messages. Returns thread metadata, messages (decrypted if server-assisted), member info, and attachment metadata.",
-    {
+  server.registerTool("mmp-thread", {
+    description: "Get a single thread (DM or group) with all its messages. Returns thread metadata, messages (decrypted if server-assisted), member info, and attachment metadata.",
+    inputSchema: {
       thread_id: z.string().describe("The thread ID to fetch"),
     },
-    async ({ thread_id }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id }) => {
       const user = getUser();
       if (!user) {
         return {

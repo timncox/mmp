@@ -8,13 +8,13 @@ export function registerMarkReadTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-mark_read",
-    "Mark a thread as read (updates last_read_at). Primarily for MCP App use.",
-    {
+  server.registerTool("mmp-mark_read", {
+    description: "Mark a thread as read (updates last_read_at). Primarily for MCP App use.",
+    inputSchema: {
       thread_id: z.string().describe("Thread ID to mark as read"),
     },
-    async ({ thread_id }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id }) => {
       const user = getUser();
       if (!user) {
         return {

@@ -7,11 +7,11 @@ export function registerWhoamiTool(
   _db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-whoami",
-    "Check your MMP identity — returns your handle, display name, and profile. Use this when the user asks 'who am I on MMP', 'what is my MMP username', or to verify authentication.",
-    {},
-    async () => {
+  server.registerTool("mmp-whoami", {
+    description: "Check your MMP identity — returns your handle, display name, and profile. Use this when the user asks 'who am I on MMP', 'what is my MMP username', or to verify authentication.",
+    inputSchema: {},
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async () => {
       const user = getUser();
       if (!user) {
         return {

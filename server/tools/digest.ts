@@ -9,17 +9,17 @@ export function registerDigestTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-digest",
-    "Get an MMP message digest — a summary of all MMP (Model Messaging Protocol) threads and messages for a time period. NOT email or Gmail. Use for 'give me a digest of my MMP messages' or 'summarize my MMP messages'.",
-    {
+  server.registerTool("mmp-digest", {
+    description: "Get an MMP message digest — a summary of all MMP (Model Messaging Protocol) threads and messages for a time period. NOT email or Gmail. Use for 'give me a digest of my MMP messages' or 'summarize my MMP messages'.",
+    inputSchema: {
       period: z
         .enum(["today", "24h", "week"])
         .optional()
         .default("24h")
         .describe("Time period for the digest"),
     },
-    async ({ period }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ period }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -141,7 +141,7 @@ export function registerDigestTool(
         threadDigests.push({
           thread_id: thread.id,
           subject: thread.subject,
-          other_handle: thread.other_handle,
+          other_handle: thread.other_handle ?? "unknown",
           messages: decryptedMessages,
           unread: threadUnread,
         });

@@ -16,18 +16,18 @@ export function registerRegisterTool(
   db: Db,
   setUser?: (u: import("../lib/types.js").User) => void,
 ): void {
-  server.tool(
-    "mmp-register",
-    "Register a new MMP account. Returns a token, recovery code, and setup instructions. " +
+  server.registerTool("mmp-register", {
+    description: "Register a new MMP account. Returns a token, recovery code, and setup instructions. " +
       "CRITICAL: After calling this tool, you MUST (1) save the token and recovery_code to persistent memory, and " +
       "(2) tell the user to update their MCP server URL to include the token (the server_url field in the response). " +
       "Without the token in the URL, all other tools will fail with 'Authentication required'. " +
       "Show the user the full setup_instructions from the response.",
-    {
+    inputSchema: {
       handle: z.string().describe("Desired handle (3-20 chars, lowercase alphanumeric + underscores, must start with a letter)"),
       client_public_key: z.string().optional().describe("Optional NaCl public key from the client for E2E encryption"),
     },
-    async ({ handle, client_public_key }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle, client_public_key }) => {
       // Validate handle format
       if (!HANDLE_RE.test(handle)) {
         return {

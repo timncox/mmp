@@ -8,13 +8,13 @@ export function registerStarTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-star",
-    "Star or unstar a thread (toggle). Starred is independent of mute/archive state.",
-    {
+  server.registerTool("mmp-star", {
+    description: "Star or unstar a thread (toggle). Starred is independent of mute/archive state.",
+    inputSchema: {
       thread_id: z.string().describe("Thread ID to star/unstar"),
     },
-    async ({ thread_id }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id }) => {
       const user = getUser();
       if (!user) {
         return {

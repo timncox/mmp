@@ -19,11 +19,11 @@ export function registerInviteTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-invite",
-    "Generate an invite code that can be shared with someone to create an MMP account.",
-    {},
-    async () => {
+  server.registerTool("mmp-invite", {
+    description: "Generate an invite code that can be shared with someone to create an MMP account.",
+    inputSchema: {},
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async () => {
       const user = getUser();
       if (!user) {
         return {

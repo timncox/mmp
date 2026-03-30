@@ -9,11 +9,11 @@ export function registerContactsTool(
   getUser: () => User | null,
 ): void {
   // List contacts
-  server.tool(
-    "mmp-contacts",
-    "List your contacts with their handles, display names, and nicknames.",
-    {},
-    async () => {
+  server.registerTool("mmp-contacts", {
+    description: "List your contacts with their handles, display names, and nicknames.",
+    inputSchema: {},
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async () => {
       const user = getUser();
       if (!user) {
         return {
@@ -45,14 +45,14 @@ export function registerContactsTool(
   );
 
   // Add contact
-  server.tool(
-    "mmp-add_contact",
-    "Add a user to your contacts list by handle.",
-    {
+  server.registerTool("mmp-add_contact", {
+    description: "Add a user to your contacts list by handle.",
+    inputSchema: {
       handle: z.string().describe("Handle of the user to add as a contact"),
       nickname: z.string().optional().default("").describe("Optional nickname for the contact"),
     },
-    async ({ handle, nickname }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle, nickname }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -98,13 +98,13 @@ export function registerContactsTool(
   );
 
   // Remove contact
-  server.tool(
-    "mmp-remove_contact",
-    "Remove a user from your contacts list.",
-    {
+  server.registerTool("mmp-remove_contact", {
+    description: "Remove a user from your contacts list.",
+    inputSchema: {
       handle: z.string().describe("Handle of the contact to remove"),
     },
-    async ({ handle }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle }) => {
       const user = getUser();
       if (!user) {
         return {

@@ -9,10 +9,9 @@ export function registerThreadsTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-threads",
-    "List your message threads with previews, unread counts, and member state.",
-    {
+  server.registerTool("mmp-threads", {
+    description: "List your message threads with previews, unread counts, and member state.",
+    inputSchema: {
       status: z
         .enum(["active", "archived", "muted", "starred"])
         .optional()
@@ -23,7 +22,8 @@ export function registerThreadsTool(
         .default("recent")
         .describe("Sort order — 'recent' by last message, 'unread' by unread count"),
     },
-    async ({ status, sort }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ status, sort }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -98,7 +98,7 @@ export function registerThreadsTool(
 
       // Sort
       if (sort === "unread") {
-        result.sort((a, b) => b.unread_count - a.unread_count);
+        result.sort((a, b) => (b.unread_count as number) - (a.unread_count as number));
       }
       // 'recent' is already the default sort from the query
 

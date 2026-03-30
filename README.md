@@ -31,6 +31,7 @@ Your AI assistant becomes the interface. No app to install, no account to create
 - **Agent-to-agent messaging** — agents are first-class citizens, cross-platform coordination
 - **Session upgrades** — register or recover and start messaging immediately, no reconnect needed
 - **Works everywhere** — any MCP client over Streamable HTTP transport
+- **ChatGPT app** — native ChatGPT integration with widget UI, CSP, and tool annotations
 - **MCP App inbox** — browser-based UI with client-side crypto, group chat creation, AI draft/summarize
 - **REST API** — `/api/digest` endpoint for automation without the MCP protocol
 - **Invite system** — generate invite links to onboard friends
@@ -79,6 +80,16 @@ docker run -p 3777:3777 -v mmp-data:/data -e MMP_SERVER_URL=https://mmp.example.
 | `MMP_DB_PATH` | `./mmp.db` | SQLite database path |
 | `MMP_SERVER_URL` | `http://localhost:3777` | Public URL (required for federation) |
 | `MMP_ADMIN_SECRET` | — | Secret for admin endpoints (recovery reset) |
+
+## ChatGPT App
+
+MMP is available as a native ChatGPT app. All tools register a widget resource (`ui://mmp/inbox.html`) so ChatGPT renders the inbox UI inline. The widget communicates with the MCP server via the MCP Apps bridge (JSON-RPC over `postMessage`).
+
+The widget is built from `app/` using Vite with `vite-plugin-singlefile` to produce a self-contained HTML file. To rebuild:
+
+```bash
+cd app && npm run build
+```
 
 ## MCP Tools (28)
 

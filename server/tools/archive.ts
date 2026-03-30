@@ -8,16 +8,16 @@ export function registerArchiveTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-archive",
-    "Archive or unarchive a thread. Use action 'unarchive' to restore.",
-    {
+  server.registerTool("mmp-archive", {
+    description: "Archive or unarchive a thread. Use action 'unarchive' to restore.",
+    inputSchema: {
       thread_id: z.string().describe("Thread ID to archive/unarchive"),
       action: z.enum(["archive", "unarchive"]).optional().default("archive").describe("'archive' or 'unarchive'"),
       // Keep backward compat
       undo: z.boolean().optional().describe("Deprecated — use action instead"),
     },
-    async ({ thread_id, action, undo }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id, action, undo }) => {
       const user = getUser();
       if (!user) {
         return {

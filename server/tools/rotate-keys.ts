@@ -8,11 +8,11 @@ export function registerRotateKeysTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-rotate-keys",
-    "Rotate your encryption keys for forward secrecy. Generates a new key pair — future messages use the new keys. Old keys are kept so historical messages can still be decrypted. Rotate periodically for better security.",
-    {},
-    async () => {
+  server.registerTool("mmp-rotate-keys", {
+    description: "Rotate your encryption keys for forward secrecy. Generates a new key pair — future messages use the new keys. Old keys are kept so historical messages can still be decrypted. Rotate periodically for better security.",
+    inputSchema: {},
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async () => {
       const user = getUser();
       if (!user) {
         return {

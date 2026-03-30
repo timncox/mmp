@@ -9,14 +9,14 @@ export function registerRecoverTool(
   db: Db,
   setUser?: (u: User) => void,
 ): void {
-  server.tool(
-    "mmp-recover",
-    "Recover access to an MMP account using a recovery code. Issues a new token, invalidates the old one, and authenticates this session immediately.",
-    {
+  server.registerTool("mmp-recover", {
+    description: "Recover access to an MMP account using a recovery code. Issues a new token, invalidates the old one, and authenticates this session immediately.",
+    inputSchema: {
       handle: z.string().describe("The handle of the account to recover"),
       recovery_code: z.string().describe("The recovery code issued at registration"),
     },
-    async ({ handle, recovery_code }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle, recovery_code }) => {
       const user = db.getUserByHandle(handle);
       if (!user) {
         return {

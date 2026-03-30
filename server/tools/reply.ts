@@ -17,10 +17,9 @@ export function registerReplyTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-reply",
-    "Reply to an existing MMP thread (DM or group). Supports plaintext (server-assisted encryption) or E2E encrypted payloads. Supports file attachments.",
-    {
+  server.registerTool("mmp-reply", {
+    description: "Reply to an existing MMP thread (DM or group). Supports plaintext (server-assisted encryption) or E2E encrypted payloads. Supports file attachments.",
+    inputSchema: {
       thread_id: z.string().describe("Thread ID to reply in"),
       body: z.string().optional().describe("Plaintext message body (server will encrypt)"),
       attachments: z.array(attachmentSchema).optional().describe("File attachments (base64-encoded)"),
@@ -38,7 +37,8 @@ export function registerReplyTool(
         .default("normal")
         .describe("Message priority"),
     },
-    async ({ thread_id, body, attachments, encrypted_payload, priority }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id, body, attachments, encrypted_payload, priority }) => {
       const user = getUser();
       if (!user) {
         return {

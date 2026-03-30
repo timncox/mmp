@@ -10,7 +10,7 @@ import {
 import type { Db } from "../lib/db.js";
 import type { User } from "../lib/types.js";
 
-const RESOURCE_URI = "ui://mmp-inbox/inbox.html";
+const RESOURCE_URI = "ui://mmp/inbox.html";
 
 function loadInboxHtml(): string {
   try {

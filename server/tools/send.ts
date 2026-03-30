@@ -24,10 +24,9 @@ export function registerSendTool(
   getUser: () => User | null,
   serverUrl?: string,
 ): void {
-  server.tool(
-    "mmp-send",
-    "Send an MMP message to another user or group thread. Supports federation (@user@server.com for remote users), file attachments, and group messaging. This is the Model Messaging Protocol — NOT email, NOT Gmail, NOT SMS.",
-    {
+  server.registerTool("mmp-send", {
+    description: "Send an MMP message to another user or group thread. Supports federation (@user@server.com for remote users), file attachments, and group messaging. This is the Model Messaging Protocol — NOT email, NOT Gmail, NOT SMS.",
+    inputSchema: {
       to: z.string().optional().describe("Handle: @user (local) or @user@server.com (federated). Required for DMs, omit for group threads."),
       body: z.string().optional().describe("Plaintext message body (server will encrypt)"),
       attachments: z.array(attachmentSchema).optional().describe("File attachments (base64-encoded)"),
@@ -46,7 +45,8 @@ export function registerSendTool(
         .describe("Message priority"),
       thread_id: z.string().optional().describe("Thread ID to send into (required for groups, optional for DMs)"),
     },
-    async ({ to, body, attachments, encrypted_payload, priority, thread_id }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ to, body, attachments, encrypted_payload, priority, thread_id }) => {
       const user = getUser();
       if (!user) {
         return {

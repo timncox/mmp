@@ -8,14 +8,14 @@ export function registerMuteTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-mute",
-    "Mute or unmute a thread. Use action 'unmute' to restore.",
-    {
+  server.registerTool("mmp-mute", {
+    description: "Mute or unmute a thread. Use action 'unmute' to restore.",
+    inputSchema: {
       thread_id: z.string().describe("Thread ID to mute/unmute"),
       action: z.enum(["mute", "unmute"]).optional().default("mute").describe("'mute' or 'unmute'"),
     },
-    async ({ thread_id, action }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id, action }) => {
       const user = getUser();
       if (!user) {
         return {

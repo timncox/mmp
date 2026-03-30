@@ -11,10 +11,9 @@ export function registerProfileTool(
   getUser: () => User | null,
 ): void {
   // Set profile
-  server.tool(
-    "mmp-set_profile",
-    "Update your profile information — display name, bio, status, or privacy level.",
-    {
+  server.registerTool("mmp-set_profile", {
+    description: "Update your profile information — display name, bio, status, or privacy level.",
+    inputSchema: {
       display_name: z.string().optional().describe("Display name"),
       bio: z.string().optional().describe("Bio / description"),
       status: z.string().optional().describe("Status message"),
@@ -23,7 +22,8 @@ export function registerProfileTool(
         .optional()
         .describe("Privacy level"),
     },
-    async ({ display_name, bio, status, privacy }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ display_name, bio, status, privacy }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -62,13 +62,13 @@ export function registerProfileTool(
   );
 
   // Change handle
-  server.tool(
-    "mmp-change_handle",
-    "Change your handle. The old handle will redirect to the new one for 30 days.",
-    {
+  server.registerTool("mmp-change_handle", {
+    description: "Change your handle. The old handle will redirect to the new one for 30 days.",
+    inputSchema: {
       new_handle: z.string().describe("New handle (3-20 chars, lowercase alphanumeric + underscores, must start with a letter)"),
     },
-    async ({ new_handle }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ new_handle }) => {
       const user = getUser();
       if (!user) {
         return {

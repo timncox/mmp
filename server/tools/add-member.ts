@@ -8,14 +8,14 @@ export function registerAddMemberTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-add-member",
-    "Add a user to an MMP group thread. Only the group owner or admins can add members.",
-    {
+  server.registerTool("mmp-add-member", {
+    description: "Add a user to an MMP group thread. Only the group owner or admins can add members.",
+    inputSchema: {
       thread_id: z.string().describe("Group thread ID"),
       handle: z.string().describe("Handle of user to add"),
     },
-    async ({ thread_id, handle }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id, handle }) => {
       const user = getUser();
       if (!user) {
         return {

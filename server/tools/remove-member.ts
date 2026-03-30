@@ -8,14 +8,14 @@ export function registerRemoveMemberTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-remove-member",
-    "Remove a member from an MMP group thread, or leave the group yourself. Owners/admins can remove others. Any member can leave.",
-    {
+  server.registerTool("mmp-remove-member", {
+    description: "Remove a member from an MMP group thread, or leave the group yourself. Owners/admins can remove others. Any member can leave.",
+    inputSchema: {
       thread_id: z.string().describe("Group thread ID"),
       handle: z.string().optional().describe("Handle to remove (omit to leave the group yourself)"),
     },
-    async ({ thread_id, handle }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ thread_id, handle }) => {
       const user = getUser();
       if (!user) {
         return {

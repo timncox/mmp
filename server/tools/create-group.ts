@@ -9,14 +9,14 @@ export function registerCreateGroupTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-create-group",
-    "Create a new MMP group thread. You become the owner. Add members by their @handles.",
-    {
+  server.registerTool("mmp-create-group", {
+    description: "Create a new MMP group thread. You become the owner. Add members by their @handles.",
+    inputSchema: {
       name: z.string().min(1).max(100).describe("Group name"),
       members: z.array(z.string()).min(1).describe("Handles of users to add to the group"),
     },
-    async ({ name, members: memberHandles }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ name, members: memberHandles }) => {
       const user = getUser();
       if (!user) {
         return {

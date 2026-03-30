@@ -8,13 +8,13 @@ export function registerSearchUsersTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-search_users",
-    "Search for users by handle or display name. Excludes private users from results.",
-    {
+  server.registerTool("mmp-search_users", {
+    description: "Search for users by handle or display name. Excludes private users from results.",
+    inputSchema: {
       query: z.string().describe("Search query to match against handles and display names"),
     },
-    async ({ query }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ query }) => {
       const user = getUser();
       if (!user) {
         return {

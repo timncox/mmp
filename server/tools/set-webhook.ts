@@ -9,10 +9,9 @@ export function registerSetWebhookTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-set-webhook",
-    "Register a webhook URL to get notified in real-time when you receive messages. Great for agents that need push notifications instead of polling. Use action 'remove' to delete your webhook.",
-    {
+  server.registerTool("mmp-set-webhook", {
+    description: "Register a webhook URL to get notified in real-time when you receive messages. Great for agents that need push notifications instead of polling. Use action 'remove' to delete your webhook.",
+    inputSchema: {
       url: z.string().url().optional().describe("HTTPS URL to receive webhook POST requests"),
       events: z
         .array(z.enum(["message.received", "message.sent"]))
@@ -25,7 +24,8 @@ export function registerSetWebhookTool(
         .default("set")
         .describe("'set' to register, 'remove' to delete, 'status' to check current webhook"),
     },
-    async ({ url, events, action }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ url, events, action }) => {
       const user = getUser();
       if (!user) {
         return {

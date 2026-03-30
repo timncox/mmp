@@ -1,5 +1,6 @@
 import express from "express";
 import { randomUUID } from "crypto";
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createDb, type Db } from "./lib/db.js";
@@ -33,6 +34,7 @@ import { registerAddMemberTool } from "./tools/add-member.js";
 import { registerRemoveMemberTool } from "./tools/remove-member.js";
 import { registerRotateKeysTool } from "./tools/rotate-keys.js";
 import { registerSetWebhookTool } from "./tools/set-webhook.js";
+import { registerDownloadTool } from "./tools/download.js";
 import { mountFederationRoutes } from "./routes/federation.js";
 import { checkRate } from "./lib/rate-limit.js";
 
@@ -47,13 +49,24 @@ export const db: Db = createDb(dbPath);
 // ---------------------------------------------------------------------------
 const SERVER_URL = process.env.MMP_SERVER_URL || `http://localhost:${parseInt(process.env.PORT || "3777", 10)}`;
 
+// ---------------------------------------------------------------------------
+// Widget template
+// ---------------------------------------------------------------------------
+const WIDGET_TEMPLATE_URI = "ui://mmp/inbox.html";
+let widgetHtml: string;
+try {
+  widgetHtml = readFileSync(new URL("../app/dist/inbox.html", import.meta.url), "utf-8");
+} catch {
+  widgetHtml = "<div>MMP Inbox widget not built. Run: cd app && npm run build</div>";
+}
+
 export function createMcpServer(
   getUser: () => User | null,
   setUser?: (u: User) => void,
 ): McpServer {
   const mcp = new McpServer(
     { name: "MMP-Messaging", version: "1.1.0" },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {}, resources: {} } },
   );
 
   // Unauthenticated tools (with session upgrade on register/recover)
@@ -84,6 +97,29 @@ export function createMcpServer(
   registerRemoveMemberTool(mcp, db, getUser);
   registerRotateKeysTool(mcp, db, getUser);
   registerSetWebhookTool(mcp, db, getUser);
+  registerDownloadTool(mcp, db, getUser);
+
+  // Widget resource for ChatGPT app
+  mcp.resource(
+    "mmp-inbox-widget",
+    WIDGET_TEMPLATE_URI,
+    async () => ({
+      contents: [{
+        uri: WIDGET_TEMPLATE_URI,
+        mimeType: "text/html;profile=mcp-app",
+        text: widgetHtml,
+        _meta: {
+          ui: {
+            domain: "https://mmp.chat",
+            csp: {
+              connectDomains: ["https://mmp.chat"],
+              resourceDomains: [],
+            },
+          },
+        },
+      }],
+    }),
+  );
 
   return mcp;
 }
@@ -221,6 +257,72 @@ app.post("/admin/reset-recovery", (req, res) => {
   const newCode = generateRecoveryCode();
   db.updateUser(user.id, { recovery_code_hash: hashToken(newCode) });
   res.json({ handle, recovery_code: newCode });
+});
+
+// REST API: download attachment
+app.get("/api/attachments/:id", (req, res) => {
+  const token = req.query.token as string;
+  if (!token) { res.status(401).json({ error: "Missing token parameter" }); return; }
+
+  const user = authenticateUser(token, db);
+  if (!user) { res.status(401).json({ error: "Invalid token" }); return; }
+
+  const attachmentId = req.params.id;
+
+  // Look up the attachment
+  const attachment = db.getAttachmentById(attachmentId);
+  if (!attachment) { res.status(404).json({ error: "Attachment not found" }); return; }
+
+  // Verify user has access to this attachment's message/thread
+  const message = db.getMessageById(attachment.message_id);
+  if (!message) { res.status(404).json({ error: "Message not found" }); return; }
+
+  const member = db.getThreadMember(message.thread_id, user.id);
+  if (!member) { res.status(403).json({ error: "Access denied" }); return; }
+
+  // Decrypt if server-assisted
+  if (attachment.encryption_mode === "server_assisted") {
+    // The attachment ciphertext was encrypted with encryptMessage (NaCl box)
+    // The recipient's private key can decrypt it
+    const decrypted = decryptMessage(
+      attachment.ciphertext,
+      attachment.nonce,
+      attachment.ciphertext ? (() => {
+        // We need the sender's public key — get it from the message
+        return message.sender_pub_key;
+      })() : "",
+      (() => {
+        // Use the recipient's private key (the message's to_user or the requesting user)
+        if (message.to_user_id === user.id) {
+          const epoch = message.key_epoch ? db.getKeyEpoch(user.id, message.key_epoch) : null;
+          return epoch?.private_key ?? user.private_key;
+        }
+        // If the requesting user sent the message, decrypt using recipient's key
+        const recipient = db.getUserById(message.to_user_id);
+        if (recipient) {
+          const epoch = message.key_epoch ? db.getKeyEpoch(recipient.id, message.key_epoch) : null;
+          return epoch?.private_key ?? recipient.private_key;
+        }
+        return user.private_key;
+      })(),
+    );
+
+    if (!decrypted) { res.status(500).json({ error: "Failed to decrypt attachment" }); return; }
+
+    const fileBuffer = Buffer.from(decrypted, "base64");
+    res.set("Content-Type", attachment.mime_type);
+    res.set("Content-Disposition", `inline; filename="${attachment.filename}"`);
+    res.set("Content-Length", String(fileBuffer.length));
+    res.send(fileBuffer);
+  } else {
+    // E2E encrypted — server can't decrypt, return the raw ciphertext for client-side decryption
+    res.status(422).json({
+      error: "E2E encrypted attachment — must be decrypted client-side",
+      ciphertext: attachment.ciphertext,
+      nonce: attachment.nonce,
+      encryption_mode: attachment.encryption_mode,
+    });
+  }
 });
 
 // Federation routes

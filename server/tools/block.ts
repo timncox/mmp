@@ -8,14 +8,14 @@ export function registerBlockTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-block",
-    "Block or unblock a user. Blocked users cannot send you messages. Use action 'unblock' to remove a block.",
-    {
+  server.registerTool("mmp-block", {
+    description: "Block or unblock a user. Blocked users cannot send you messages. Use action 'unblock' to remove a block.",
+    inputSchema: {
       handle: z.string().describe("Handle of the user to block/unblock"),
       action: z.enum(["block", "unblock"]).optional().default("block").describe("'block' to block, 'unblock' to remove block"),
     },
-    async ({ handle, action }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle, action }) => {
       const user = getUser();
       if (!user) {
         return {

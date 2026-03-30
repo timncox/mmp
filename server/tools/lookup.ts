@@ -8,13 +8,13 @@ export function registerLookupTool(
   db: Db,
   getUser: () => User | null,
 ): void {
-  server.tool(
-    "mmp-lookup",
-    "Look up a user's profile and public keys by handle. Respects privacy levels.",
-    {
+  server.registerTool("mmp-lookup", {
+    description: "Look up a user's profile and public keys by handle. Respects privacy levels.",
+    inputSchema: {
       handle: z.string().describe("Handle of the user to look up"),
     },
-    async ({ handle }) => {
+    _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
+  }, async ({ handle }) => {
       const user = getUser();
       if (!user) {
         return {
