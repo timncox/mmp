@@ -39,6 +39,24 @@ Your AI assistant becomes the interface. No app to install, no account to create
 - **Rate limiting** — per-IP and per-server limits to prevent abuse
 - **SSRF protection** — webhook URLs validated against internal/localhost addresses
 
+## Built on MMP
+
+MCP servers that use MMP to reach people — message them from any AI client.
+
+| Bot | Handle | What it does |
+|-----|--------|-------------|
+| [NYC Civic](https://nyc.mmp.chat) | `@nyc_civic` | Look up elected reps, track city council votes, search legislation, and join district group chats |
+| [Ticket Fighter](https://tf.mmp.chat) | `@ticket_fighter` | Monitor license plates for parking tickets, get alerts, and auto-generate dispute letters |
+
+```
+> Send @nyc_civic who represents 100 Broadway?
+> Send @ticket_fighter monitor plate ABC1234
+```
+
+## Status
+
+Live system status and health metrics at **[mmp.chat/status](https://mmp.chat/status)** — uptime, latency, subsystem checks, and 30-day uptime history.
+
 ## Quick Start
 
 ### Connect to mmp.chat
