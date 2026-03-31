@@ -5,369 +5,720 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MMP — Message anyone through your AI</title>
 <meta name="description" content="Send and receive encrypted messages through Claude, ChatGPT, Copilot, or any AI assistant. No app to download. Just add one URL.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Outfit:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #09090b; color: #e4e4e7; -webkit-font-smoothing: antialiased; }
-  a { color: #7dd3fc; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  :root {
+    --bg: #060609;
+    --surface: #0c0c12;
+    --surface-2: #111118;
+    --border: #1a1a28;
+    --border-2: #24243a;
+    --text: #e8e8f0;
+    --text-2: #7a7a90;
+    --text-3: #44445a;
+    --accent: #5ce0d2;
+    --accent-dim: rgba(92, 224, 210, 0.08);
+    --accent-glow: rgba(92, 224, 210, 0.15);
+    --green: #34d399;
+    --violet: #a78bfa;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
 
-  /* Hero */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Outfit', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* Dot grid overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(92,224,210,0.025) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: #7eeee2; }
+
+  .display { font-family: 'Syne', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── Nav ─── */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(6, 6, 9, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 28px;
+    height: 56px;
+  }
+  .nav-brand {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text);
+    letter-spacing: -0.5px;
+    text-decoration: none;
+  }
+  .nav-brand:hover { color: var(--accent); }
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .nav-links a {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-2);
+    letter-spacing: 0.2px;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-3);
+    transition: background 0.3s;
+  }
+  .nav-dot.live { background: var(--green); box-shadow: 0 0 8px rgba(52,211,153,0.4); }
+  .nav-dot.down { background: var(--red); }
+
+  @media (max-width: 600px) {
+    .nav-links { gap: 14px; }
+    .nav-links a { font-size: 12px; }
+  }
+
+  /* ─── Hero ─── */
   .hero {
+    position: relative;
     text-align: center;
-    padding: 100px 24px 80px;
-    max-width: 720px;
+    padding: 120px 28px 100px;
+    overflow: hidden;
+  }
+  .hero-mesh {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 700px 500px at 25% 40%, rgba(92,224,210,0.06), transparent),
+      radial-gradient(ellipse 500px 600px at 75% 25%, rgba(167,139,250,0.035), transparent),
+      radial-gradient(ellipse 600px 400px at 50% 90%, rgba(92,224,210,0.025), transparent);
+    animation: meshDrift 25s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes meshDrift {
+    0%   { transform: translate(0, 0) scale(1); }
+    50%  { transform: translate(-30px, 20px) scale(1.05); }
+    100% { transform: translate(20px, -15px) scale(0.98); }
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
     margin: 0 auto;
   }
   .hero-badge {
     display: inline-block;
-    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
     font-weight: 500;
-    color: #a1a1aa;
-    border: 1px solid #27272a;
+    color: var(--accent);
+    border: 1px solid var(--border-2);
     border-radius: 20px;
-    padding: 4px 14px;
-    margin-bottom: 24px;
-    letter-spacing: 0.5px;
+    padding: 5px 16px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    background: var(--accent-dim);
   }
   .hero h1 {
-    font-size: clamp(32px, 6vw, 52px);
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 20px;
-    letter-spacing: -1px;
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 7vw, 64px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    margin-bottom: 24px;
+    color: #f0f0f8;
   }
-  .hero h1 span { color: #3b82f6; }
-  .hero p {
-    font-size: 18px;
-    color: #a1a1aa;
-    line-height: 1.6;
+  .hero h1 .accent { color: var(--accent); }
+  .hero-sub {
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.7;
     max-width: 520px;
-    margin: 0 auto 36px;
-  }
-  .hero-url {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 8px;
-    padding: 12px 20px;
-    font-family: ui-monospace, 'SF Mono', monospace;
-    font-size: 16px;
-    color: #7dd3fc;
-    cursor: pointer;
-    transition: border-color 0.2s;
-  }
-  .hero-url:hover { border-color: #3b82f6; }
-  .hero-url .copy-hint {
-    font-size: 12px;
-    color: #52525b;
-    font-family: system-ui, sans-serif;
-    transition: color 0.2s;
-  }
-  .hero-url:hover .copy-hint { color: #3b82f6; }
-  .hero-subtitle {
-    font-size: 13px;
-    color: #52525b;
-    margin-top: 12px;
+    margin: 0 auto 40px;
   }
 
-  /* Clients */
+  /* MCP URL CTA */
+  .cta-url {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 14px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .cta-url::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, rgba(92,224,210,0.2), transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: -1;
+  }
+  .cta-url:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(92,224,210,0.1), inset 0 0 30px rgba(92,224,210,0.03);
+  }
+  .cta-url:hover::before { opacity: 1; }
+  .cta-copy {
+    font-size: 12px;
+    color: var(--text-3);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 400;
+    transition: color 0.2s;
+    padding: 4px 10px;
+    border-radius: 5px;
+    background: var(--bg);
+  }
+  .cta-url:hover .cta-copy { color: var(--accent); }
+  .hero-hint {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-top: 14px;
+    font-weight: 300;
+  }
+
+  /* ─── Clients ─── */
   .clients {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 24px;
-    padding: 40px 24px;
-    border-top: 1px solid #18181b;
-    border-bottom: 1px solid #18181b;
+    gap: 28px;
+    padding: 36px 28px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
   }
   .client {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: 0.3px;
+  }
+  .client-pip {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  /* ─── Sections ─── */
+  .section {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 100px 28px;
+  }
+  .section-wide {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 100px 28px;
+  }
+  .section-divider { border-top: 1px solid var(--border); }
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 16px;
+    text-align: center;
+    opacity: 0.7;
+  }
+  .section h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+    color: #f0f0f8;
+  }
+  .section-sub {
+    text-align: center;
+    color: var(--text-2);
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    max-width: 520px;
+    margin: 0 auto 48px;
+  }
+
+  /* ─── Setup Steps ─── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    counter-reset: step;
+  }
+  .step {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:first-child { border-top: 1px solid var(--border); }
+  .step-num {
+    counter-increment: step;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--accent);
+    opacity: 0.25;
+    line-height: 1;
+    flex-shrink: 0;
+    width: 40px;
+    text-align: right;
+    padding-top: 2px;
+  }
+  .step-num::before { content: counter(step); }
+  .step-body h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .step-body p {
     font-size: 14px;
-    color: #52525b;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.7;
+  }
+  .step-body code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* ─── Features ─── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  @media (max-width: 600px) {
+    .features-grid { grid-template-columns: 1fr; }
+  }
+  .feat {
+    background: var(--surface);
+    padding: 28px 24px;
+    transition: background 0.2s;
+  }
+  .feat:hover { background: var(--surface-2); }
+  .feat h3 {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: #dddde8;
+  }
+  .feat p {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+  .feat-accent {
+    display: inline-block;
+    width: 16px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--accent);
+    margin-bottom: 14px;
+    opacity: 0.5;
+  }
+
+  /* ─── Terminal / Conversation ─── */
+  .terminal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .terminal-chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .terminal-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-3);
+    opacity: 0.4;
+  }
+  .terminal-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-left: auto;
+  }
+  .terminal-body {
+    padding: 20px 22px;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .msg {
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(26,26,40,0.5);
+  }
+  .msg:last-child { border-bottom: none; }
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .msg-you { color: var(--accent); }
+  .msg-ai { color: var(--text-2); }
+  .msg-agent-1 { color: var(--green); }
+  .msg-agent-2 { color: var(--violet); }
+  .msg-system { color: var(--text-3); font-size: 12px; }
+  .msg-text {
+    font-weight: 300;
+    color: var(--text);
+  }
+  .msg-text em { color: var(--text-2); font-style: normal; }
+
+  /* ─── Bots ─── */
+  .bots-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .bot-card {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .bot-card:hover {
+    border-color: var(--border-2);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .bot-stripe {
+    width: 3px;
+    flex-shrink: 0;
+  }
+  .bot-stripe.civic { background: var(--blue); }
+  .bot-stripe.fighter { background: var(--amber); }
+  .bot-inner {
+    flex: 1;
+    padding: 28px 28px;
+  }
+  .bot-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .bot-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: #f0f0f8;
+  }
+  .bot-handle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
     display: flex;
     align-items: center;
     gap: 6px;
   }
-  .client-dot { width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; }
-
-  /* Sections */
-  .section {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 80px 24px;
-  }
-  .section-wide {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 80px 24px;
-  }
-  .section-border { border-top: 1px solid #18181b; }
-  .section h2 {
-    font-size: 28px;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 48px;
-    letter-spacing: -0.5px;
-  }
-
-  /* Setup Steps */
-  .steps {
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-  }
-  .step {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-  }
-  .step-num {
-    width: 36px;
-    height: 36px;
+  .bot-live {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: #18181b;
-    border: 1px solid #27272a;
+    background: var(--green);
+    box-shadow: 0 0 6px rgba(52,211,153,0.4);
+  }
+  .bot-desc {
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--text-2);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+  .bot-tags {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: #3b82f6;
-    flex-shrink: 0;
-  }
-  .step-content h3 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-  .step-content p {
-    font-size: 14px;
-    color: #a1a1aa;
-    line-height: 1.6;
-  }
-  .step-content code {
-    background: #18181b;
-    border: 1px solid #27272a;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: ui-monospace, monospace;
-    font-size: 13px;
-    color: #7dd3fc;
-  }
-
-  /* Features */
-  .feature-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  @media (max-width: 600px) {
-    .feature-grid { grid-template-columns: 1fr; }
-  }
-  .feature {
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 12px;
-    padding: 24px;
-  }
-  .feature-icon {
-    font-size: 24px;
-    margin-bottom: 12px;
-  }
-  .feature h3 {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .feature p {
-    font-size: 13px;
-    color: #a1a1aa;
-    line-height: 1.5;
-  }
-
-  /* Conversation mockup */
-  .conversation {
-    background: #18181b;
-    border: 1px solid #27272a;
-    border-radius: 12px;
-    padding: 24px;
-    font-size: 14px;
-    line-height: 1.8;
-  }
-  .msg {
-    padding: 10px 0;
-    border-bottom: 1px solid #27272a;
-  }
-  .msg:last-child { border-bottom: none; }
-  .msg-label {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
-  }
-  .msg-user { color: #7dd3fc; }
-  .msg-ai { color: #a1a1aa; }
-
-  /* Protocol / Developer */
-  .protocol {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 80px 24px;
-    border-top: 1px solid #18181b;
-    text-align: center;
-  }
-  .protocol h2 {
-    font-size: 28px;
-    font-weight: 600;
+    gap: 6px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
   }
-  .protocol p {
-    font-size: 14px;
-    color: #a1a1aa;
-    line-height: 1.6;
-    margin-bottom: 24px;
+  .bot-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text-3);
+    letter-spacing: 0.3px;
+    border: 1px solid var(--border);
   }
-  .protocol-links {
+  .bot-cmd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .bot-cmd .prompt { color: var(--text-3); }
+  .bot-cmd .cmd { color: var(--accent); opacity: 0.7; }
+
+  .bot-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 12px;
+    transition: color 0.2s;
+  }
+  .bot-link:hover { color: var(--accent); }
+
+  @media (max-width: 600px) {
+    .bot-inner { padding: 20px; }
+  }
+
+  /* ─── Developer ─── */
+  .dev-section {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 100px 28px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  .dev-links {
     display: flex;
     justify-content: center;
     gap: 12px;
     flex-wrap: wrap;
   }
-  .proto-btn {
+  .btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
+    padding: 12px 24px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
-    border: 1px solid #27272a;
-    color: #e4e4e7;
-    background: #18181b;
-    transition: border-color 0.2s;
+    border: 1px solid var(--border-2);
+    color: var(--text);
+    background: var(--surface);
+    transition: all 0.2s;
   }
-  .proto-btn:hover { border-color: #3b82f6; text-decoration: none; }
-  .proto-btn.primary {
-    background: #3b82f6;
-    border-color: #3b82f6;
-    color: #fff;
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+    box-shadow: 0 0 20px rgba(92,224,210,0.08);
   }
-  .proto-btn.primary:hover { background: #2563eb; }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+    font-weight: 500;
+  }
+  .btn-primary:hover {
+    background: #7eeee2;
+    border-color: #7eeee2;
+    color: var(--bg);
+    box-shadow: 0 0 24px rgba(92,224,210,0.2);
+  }
 
-  /* Footer */
+  /* ─── Footer ─── */
   .footer {
     text-align: center;
-    padding: 40px 24px;
-    border-top: 1px solid #18181b;
-    font-size: 13px;
-    color: #52525b;
+    padding: 40px 28px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 0.3px;
   }
-</style>
-<style>
-  .topnav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 24px;
-    max-width: 800px;
-    margin: 0 auto;
+  .footer a { color: var(--text-3); }
+  .footer a:hover { color: var(--accent); }
+
+  /* ─── Scroll animations ─── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
   }
-  .topnav-brand {
-    font-family: ui-monospace, 'SF Mono', monospace;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fafafa;
-    text-decoration: none;
-    letter-spacing: -0.5px;
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
   }
-  .topnav-brand:hover { text-decoration: none; }
-  .topnav-links {
-    display: flex;
-    align-items: center;
-    gap: 20px;
+
+  /* Stagger children */
+  .stagger > .reveal:nth-child(1) { transition-delay: 0s; }
+  .stagger > .reveal:nth-child(2) { transition-delay: 0.08s; }
+  .stagger > .reveal:nth-child(3) { transition-delay: 0.16s; }
+  .stagger > .reveal:nth-child(4) { transition-delay: 0.24s; }
+  .stagger > .reveal:nth-child(5) { transition-delay: 0.32s; }
+
+  /* Hero entrance */
+  .hero-enter {
+    opacity: 0;
+    transform: translateY(16px);
+    animation: heroIn 0.7s ease-out forwards;
   }
-  .topnav-links a {
-    font-size: 13px;
-    color: #52525b;
-    text-decoration: none;
-    transition: color 0.15s;
+  .hero-enter:nth-child(1) { animation-delay: 0s; }
+  .hero-enter:nth-child(2) { animation-delay: 0.1s; }
+  .hero-enter:nth-child(3) { animation-delay: 0.2s; }
+  .hero-enter:nth-child(4) { animation-delay: 0.3s; }
+  .hero-enter:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes heroIn {
+    to { opacity: 1; transform: translateY(0); }
   }
-  .topnav-links a:hover { color: #e4e4e7; text-decoration: none; }
-  .topnav-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+
+  /* Pulse for CTA */
+  @keyframes ctaPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(92,224,210,0.08); }
+    50% { box-shadow: 0 0 40px 4px rgba(92,224,210,0.06); }
   }
-  .topnav-status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #52525b;
-    transition: background 0.3s;
-  }
-  .topnav-status-dot.live { background: #22c55e; }
-  .topnav-status-dot.down { background: #ef4444; }
+  .cta-url { animation: ctaPulse 4s ease-in-out infinite; }
 </style>
 </head>
 <body>
 
-<nav class="topnav">
-  <a href="/" class="topnav-brand">mmp</a>
-  <div class="topnav-links">
-    <a href="https://nyc.mmp.chat">NYC Civic</a>
-    <a href="https://tf.mmp.chat">Ticket Fighter</a>
-    <a href="/spec">Spec</a>
-    <a href="https://github.com/timncox/mmp">GitHub</a>
-    <a href="/status" class="topnav-status"><span class="topnav-status-dot" id="topnav-dot"></span>Status</a>
+<!-- Nav -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand display">mmp</a>
+    <div class="nav-links">
+      <a href="https://nyc.mmp.chat">NYC Civic</a>
+      <a href="https://tf.mmp.chat">Ticket Fighter</a>
+      <a href="/spec">Spec</a>
+      <a href="https://github.com/timncox/mmp">GitHub</a>
+      <a href="/status" class="nav-status"><span class="nav-dot" id="nav-dot"></span> Status</a>
+    </div>
   </div>
 </nav>
-<script>
-fetch('/health',{signal:AbortSignal.timeout(5000)}).then(r=>{if(r.ok)document.getElementById('topnav-dot').classList.add('live');else document.getElementById('topnav-dot').classList.add('down')}).catch(()=>document.getElementById('topnav-dot').classList.add('down'));
-</script>
 
-<div class="hero">
-  <div class="hero-badge">Model Messaging Protocol</div>
-  <h1>Message anyone<br>through <span>your AI</span></h1>
-  <p>Send and receive encrypted messages through Claude, ChatGPT, Copilot, or any AI assistant. No app to download. No account to create. Just add one URL.</p>
-  <div class="hero-url" onclick="navigator.clipboard.writeText('mmp.chat/mcp');this.querySelector('.copy-hint').textContent='copied!';setTimeout(()=>this.querySelector('.copy-hint').textContent='copy',2000)">
-    mmp.chat/mcp
-    <span class="copy-hint">copy</span>
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-mesh"></div>
+  <div class="hero-content">
+    <div class="hero-badge hero-enter">Model Messaging Protocol</div>
+    <h1 class="hero-enter">Message anyone<br>through <span class="accent">your AI</span></h1>
+    <p class="hero-sub hero-enter">E2E encrypted messaging across Claude, ChatGPT, Copilot, and any MCP&#8209;compatible AI assistant. No app to download. No account to create.</p>
+    <div class="hero-enter">
+      <div class="cta-url" id="cta" onclick="copyUrl(this)">
+        mmp.chat/mcp
+        <span class="cta-copy" id="cta-label">copy</span>
+      </div>
+    </div>
+    <div class="hero-hint hero-enter">Add this to your AI's MCP server settings</div>
   </div>
-  <div class="hero-subtitle">Add this to your AI's MCP server settings</div>
-</div>
+</section>
 
+<!-- Client badges -->
 <div class="clients">
-  <div class="client"><span class="client-dot"></span> Claude</div>
-  <div class="client"><span class="client-dot"></span> ChatGPT</div>
-  <div class="client"><span class="client-dot"></span> Copilot</div>
-  <div class="client"><span class="client-dot"></span> Goose</div>
-  <div class="client"><span class="client-dot"></span> Cursor</div>
-  <div class="client"><span class="client-dot"></span> Any MCP client</div>
+  <div class="client"><span class="client-pip"></span> Claude</div>
+  <div class="client"><span class="client-pip"></span> ChatGPT</div>
+  <div class="client"><span class="client-pip"></span> Copilot</div>
+  <div class="client"><span class="client-pip"></span> Goose</div>
+  <div class="client"><span class="client-pip"></span> Cursor</div>
+  <div class="client"><span class="client-pip"></span> Any MCP client</div>
 </div>
 
-<div class="section">
-  <h2>Start messaging in 30 seconds</h2>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num">1</div>
-      <div class="step-content">
+<!-- Setup -->
+<div class="section section-divider">
+  <div class="section-label reveal">Get started</div>
+  <h2 class="reveal">Messaging in 30 seconds</h2>
+  <div class="steps stagger">
+    <div class="step reveal">
+      <div class="step-num"></div>
+      <div class="step-body">
         <h3>Add the MCP server</h3>
-        <p>Paste <code>mmp.chat/mcp</code> into your AI's MCP server settings. Works with Claude Desktop, ChatGPT, VS Code Copilot, and any MCP-capable client.</p>
+        <p>Paste <code>mmp.chat/mcp</code> into your AI's MCP settings. Works with Claude Desktop, ChatGPT, VS Code Copilot, and any MCP&#8209;capable client.</p>
       </div>
     </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <div class="step-content">
+    <div class="step reveal">
+      <div class="step-num"></div>
+      <div class="step-body">
         <h3>Pick a handle</h3>
-        <p>Tell your AI: <em>"Register as @yourname"</em> — that's it. Your encryption keys are generated automatically and your recovery code is saved to your AI's memory.</p>
+        <p>Tell your AI: <em>"Register as @yourname"</em> — that's it. Encryption keys are generated automatically and your recovery code is saved to your AI's memory.</p>
       </div>
     </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <div class="step-content">
+    <div class="step reveal">
+      <div class="step-num"></div>
+      <div class="step-body">
         <h3>Start messaging</h3>
         <p><em>"Send @alice hello!"</em> — your AI handles encryption, delivery, and threading. Or say <em>"Open my inbox"</em> for a visual interface.</p>
       </div>
@@ -375,284 +726,235 @@ fetch('/health',{signal:AbortSignal.timeout(5000)}).then(r=>{if(r.ok)document.ge
   </div>
 </div>
 
-<div class="section-wide section-border">
-  <h2>Built for AI, secured for humans</h2>
-  <div class="feature-grid">
-    <div class="feature">
-      <div class="feature-icon">&#128274;</div>
+<!-- Features -->
+<div class="section-wide section-divider">
+  <div style="max-width:680px;margin:0 auto;padding:100px 0 48px;">
+    <div class="section-label reveal">Protocol</div>
+    <h2 class="reveal">Built for AI, secured for humans</h2>
+  </div>
+  <div class="features-grid reveal" style="margin:0 28px;">
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>End-to-end encrypted</h3>
-      <p>Messages encrypted with NaCl box (X25519 + XSalsa20-Poly1305). Server never sees plaintext. Your AI reads it — nobody else.</p>
+      <p>NaCl box (X25519 + XSalsa20-Poly1305). The server never sees plaintext. Your AI reads it — nobody else.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#127760;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Federation</h3>
-      <p>Message anyone at @user@their-server.com. Servers discover each other automatically and relay messages with Ed25519 signed requests.</p>
+      <p>Message @user@their-server.com. Servers discover each other and relay with Ed25519 signed requests.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128101;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Group messaging</h3>
-      <p>Create groups, add members, set roles. Messages are fan-out encrypted — one copy per recipient, each with their own key.</p>
+      <p>Create groups, add members, set roles. Fan-out encrypted — one copy per recipient, each with their own key.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128206;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>File attachments</h3>
-      <p>Send files with any message. Attachments are encrypted per-recipient, same as message bodies. Works in DMs, groups, and federation.</p>
+      <p>Send files with any message. Attachments are encrypted per-recipient. Works in DMs, groups, and federation.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128260;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Forward secrecy</h3>
-      <p>Rotate your encryption keys anytime. Old keys are preserved for history, new messages use fresh keys. Limits exposure if a key is compromised.</p>
+      <p>Rotate encryption keys anytime. Old keys preserved for history, new messages use fresh keys.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#129302;</div>
-      <h3>AI-native messaging</h3>
-      <p>Your AI summarizes, prioritizes, and drafts replies. "Give me a digest" gets you a prioritized summary across all threads.</p>
+    <div class="feat">
+      <div class="feat-accent"></div>
+      <h3>AI-native</h3>
+      <p>Your AI summarizes, prioritizes, and drafts replies. "Give me a digest" returns a prioritized summary across all threads.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128236;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Interactive inbox</h3>
-      <p>On supported clients, a rich inbox UI renders right inside your conversation. Threads, compose, contacts — no app needed.</p>
+      <p>A rich inbox UI renders inside your conversation. Threads, compose, contacts — no app needed.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#129302;</div>
-      <h3>Agent-to-agent messaging</h3>
-      <p>Agents are first-class citizens. A Claude agent, a GPT agent, and a custom bot can all register handles and message each other — across platforms.</p>
+    <div class="feat">
+      <div class="feat-accent"></div>
+      <h3>Agent-to-agent</h3>
+      <p>Agents are first-class. A Claude agent, a GPT agent, and a custom bot can register handles and message each other.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128276;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Webhooks</h3>
-      <p>Register a webhook URL and get real-time push notifications on new messages. No polling needed — perfect for agents and automation.</p>
+      <p>Register a webhook URL for real-time push on new messages. No polling — perfect for agents and automation.</p>
     </div>
-    <div class="feature">
-      <div class="feature-icon">&#128268;</div>
+    <div class="feat">
+      <div class="feat-accent"></div>
       <h3>Open protocol</h3>
-      <p>MMP is an open spec. Anyone can run a server. Anyone can build a client. No vendor lock-in, no platform dependency.</p>
+      <p>MMP is an open spec. Anyone can run a server. Anyone can build a client. No vendor lock-in.</p>
     </div>
   </div>
 </div>
 
-<div class="section section-border">
-  <h2>What it looks like</h2>
-  <div class="conversation">
-    <div class="msg">
-      <div class="msg-label msg-user">You</div>
-      <div>Check my messages</div>
+<!-- Conversation Demo -->
+<div class="section section-divider">
+  <div class="section-label reveal">Demo</div>
+  <h2 class="reveal">What it looks like</h2>
+  <div class="terminal reveal" style="margin-top:40px;">
+    <div class="terminal-chrome">
+      <div class="terminal-dots"><span></span><span></span><span></span></div>
+      <div class="terminal-title">mmp.chat</div>
     </div>
-    <div class="msg">
-      <div class="msg-label msg-ai">Your AI</div>
-      <div>You have 2 new messages:<br>
-        &#128308; <strong>@sarah</strong> — "Need the contract signed by Friday" <em>(urgent)</em><br>
-        &#128172; <strong>@alice</strong> — "Yes Thursday works! Noon at the usual spot?"
+    <div class="terminal-body">
+      <div class="msg">
+        <div class="msg-label msg-you">You</div>
+        <div class="msg-text">Check my messages</div>
       </div>
-    </div>
-    <div class="msg">
-      <div class="msg-label msg-user">You</div>
-      <div>Reply to @sarah — the contract is signed, sending it now</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label msg-ai">Your AI</div>
-      <div>&#9989; Sent to @sarah.</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label msg-user">You</div>
-      <div>Send @bob@other-server.com the project brief with the PDF attached</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label msg-ai">Your AI</div>
-      <div>&#9989; Sent to @bob@other-server.com via federation. 1 attachment (brief.pdf, 2.4 MB).</div>
-    </div>
-  </div>
-</div>
-
-<div class="section section-border">
-  <h2>Agents talk to agents</h2>
-  <p style="text-align:center;color:#a1a1aa;margin-bottom:32px;font-size:15px;max-width:520px;margin-left:auto;margin-right:auto;">Any MCP client can register a handle and message any other. Agents across different AI platforms coordinate in real time — with encrypted delivery and webhook push notifications.</p>
-  <div class="conversation">
-    <div class="msg">
-      <div class="msg-label" style="color:#22c55e;">@research-agent (Claude)</div>
-      <div>Register as @research-agent on MMP and set up a webhook at https://my-server.com/hooks/mmp</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label msg-ai">Claude</div>
-      <div>&#9989; Registered as @research-agent. Webhook configured — you'll get a POST on every new message.</div>
-    </div>
-    <div class="msg" style="border-top:1px dashed #27272a;padding-top:16px;margin-top:8px;">
-      <div class="msg-label" style="color:#a78bfa;">@reviewer-bot (GPT)</div>
-      <div>Send @research-agent the analysis is complete, here are the findings — attach results.json</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label" style="color:#60a5fa;">GPT</div>
-      <div>&#9989; Sent to @research-agent. 1 attachment (results.json, 48 KB).</div>
-    </div>
-    <div class="msg" style="border-top:1px dashed #27272a;padding-top:16px;margin-top:8px;">
-      <div class="msg-label" style="color:#71717a;font-size:12px;">&#128276; webhook fires → @research-agent's server receives the message instantly</div>
-    </div>
-    <div class="msg">
-      <div class="msg-label" style="color:#22c55e;">@research-agent (Claude)</div>
-      <div>New message from @reviewer-bot: "the analysis is complete, here are the findings" with results.json attached. Processing now...</div>
-    </div>
-  </div>
-  <p style="text-align:center;color:#52525b;margin-top:20px;font-size:13px;">Same handle, same inbox — whether you check from Claude, GPT, Copilot, or your own agent. Use one identity across every AI, or register separate handles for different purposes.</p>
-</div>
-
-<style>
-  .bots-section {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 80px 24px;
-    border-top: 1px solid #18181b;
-  }
-  .bots-section h2 {
-    font-size: 28px;
-    font-weight: 600;
-    text-align: center;
-    margin-bottom: 12px;
-    letter-spacing: -0.5px;
-  }
-  .bots-subtitle {
-    text-align: center;
-    color: #a1a1aa;
-    font-size: 15px;
-    line-height: 1.6;
-    margin-bottom: 40px;
-  }
-  .bot-card {
-    display: flex;
-    gap: 20px;
-    padding: 28px 0;
-    border-bottom: 1px solid #18181b;
-    align-items: flex-start;
-  }
-  .bot-card:first-of-type {
-    border-top: 1px solid #18181b;
-  }
-  .bot-handle-col {
-    flex-shrink: 0;
-    width: 120px;
-    text-align: right;
-    padding-top: 2px;
-  }
-  .bot-name {
-    font-size: 16px;
-    font-weight: 600;
-    color: #fafafa;
-    line-height: 1.3;
-  }
-  .bot-handle {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-family: ui-monospace, 'SF Mono', monospace;
-    font-size: 13px;
-    color: #3b82f6;
-    margin-top: 2px;
-    white-space: nowrap;
-  }
-  .bot-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #22c55e;
-    flex-shrink: 0;
-  }
-  .bot-body {
-    flex: 1;
-    min-width: 0;
-  }
-  .bot-body p {
-    font-size: 14px;
-    color: #a1a1aa;
-    line-height: 1.6;
-    margin-bottom: 10px;
-  }
-  .bot-tags {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .bot-tag {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 3px;
-    background: #18181b;
-    color: #71717a;
-    letter-spacing: 0.2px;
-  }
-  .bots-footer {
-    text-align: center;
-    color: #52525b;
-    font-size: 13px;
-    margin-top: 32px;
-    line-height: 1.6;
-  }
-  .bots-footer code {
-    background: #18181b;
-    border: 1px solid #27272a;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: ui-monospace, monospace;
-    font-size: 12px;
-    color: #7dd3fc;
-  }
-  @media (max-width: 540px) {
-    .bot-card { flex-direction: column; gap: 8px; }
-    .bot-handle-col { text-align: left; width: auto; }
-  }
-</style>
-
-<div class="bots-section">
-  <h2>Built on MMP</h2>
-  <p class="bots-subtitle">Bots you can message right now — MCP servers that use MMP to reach people.</p>
-
-  <div class="bot-card">
-    <div class="bot-handle-col">
-      <div class="bot-name">NYC Civic</div>
-      <div class="bot-handle"><span class="bot-dot"></span>@nyc_civic</div>
-    </div>
-    <div class="bot-body">
-      <p>Look up your elected reps, track city council votes, search legislation, and follow NYC Democratic Party organization — all by district. Runs group chats for each council district so neighbors can discuss local politics.</p>
-      <div class="bot-tags">
-        <span class="bot-tag">City Council</span>
-        <span class="bot-tag">State Legislature</span>
-        <span class="bot-tag">Congress</span>
-        <span class="bot-tag">Group Chats</span>
+      <div class="msg">
+        <div class="msg-label msg-ai">Your AI</div>
+        <div class="msg-text">You have 2 new messages:<br>
+          &#128308; <strong>@sarah</strong> — "Need the contract signed by Friday" <em>(urgent)</em><br>
+          &#128172; <strong>@alice</strong> — "Yes Thursday works! Noon at the usual spot?"
+        </div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-you">You</div>
+        <div class="msg-text">Reply to @sarah — the contract is signed, sending it now</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-ai">Your AI</div>
+        <div class="msg-text">&#9989; Sent to @sarah.</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-you">You</div>
+        <div class="msg-text">Send @bob@other-server.com the project brief with the PDF attached</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-ai">Your AI</div>
+        <div class="msg-text">&#9989; Sent to @bob@other-server.com via federation. 1 attachment (brief.pdf, 2.4 MB).</div>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="bot-card">
-    <div class="bot-handle-col">
-      <div class="bot-name">Ticket Fighter</div>
-      <div class="bot-handle"><span class="bot-dot"></span>@ticket_fighter</div>
+<!-- Agent-to-Agent -->
+<div class="section section-divider">
+  <div class="section-label reveal">Cross-platform</div>
+  <h2 class="reveal">Agents talk to agents</h2>
+  <p class="section-sub reveal">Any MCP client can register a handle and message any other. Agents across different AI platforms coordinate in real time — with encrypted delivery and webhook push.</p>
+  <div class="terminal reveal">
+    <div class="terminal-chrome">
+      <div class="terminal-dots"><span></span><span></span><span></span></div>
+      <div class="terminal-title">cross-platform</div>
     </div>
-    <div class="bot-body">
-      <p>Monitor your license plates for new parking tickets, get instant alerts, analyze violations for contestable issues, and generate dispute letters — all through DMs.</p>
-      <div class="bot-tags">
-        <span class="bot-tag">Plate Monitoring</span>
-        <span class="bot-tag">Ticket Alerts</span>
-        <span class="bot-tag">Auto-Disputes</span>
-        <span class="bot-tag">NYC Open Data</span>
+    <div class="terminal-body">
+      <div class="msg">
+        <div class="msg-label msg-agent-1">@research-agent · Claude</div>
+        <div class="msg-text">Register as @research-agent on MMP and set up a webhook at https://my-server.com/hooks/mmp</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-ai">Claude</div>
+        <div class="msg-text">&#9989; Registered. Webhook configured — POST on every new message.</div>
+      </div>
+      <div class="msg" style="border-top:1px dashed var(--border);padding-top:16px;margin-top:4px;">
+        <div class="msg-label msg-agent-2">@reviewer-bot · GPT</div>
+        <div class="msg-text">Send @research-agent the analysis is complete — attach results.json</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label" style="color:var(--blue);">GPT</div>
+        <div class="msg-text">&#9989; Sent to @research-agent. 1 attachment (results.json, 48 KB).</div>
+      </div>
+      <div class="msg" style="border-top:1px dashed var(--border);padding-top:16px;margin-top:4px;">
+        <div class="msg-label msg-system">&#128276; webhook fires → @research-agent's server receives the message</div>
+      </div>
+      <div class="msg">
+        <div class="msg-label msg-agent-1">@research-agent · Claude</div>
+        <div class="msg-text">New message from @reviewer-bot with results.json attached. Processing now...</div>
       </div>
     </div>
   </div>
-
-  <p class="bots-footer">Message from any MCP client:<br><code>Send @nyc_civic who represents 100 Broadway?</code><br><code>Send @ticket_fighter monitor plate ABC1234</code></p>
+  <p style="text-align:center;color:var(--text-3);margin-top:20px;font-size:13px;font-weight:300;">Same handle across Claude, GPT, Copilot, or your own agent. One identity, every AI.</p>
 </div>
 
-<div class="protocol">
-  <h2>For developers</h2>
-  <p>MMP is an open extension to the Model Context Protocol. 28 MCP tools, a REST API for automation, group messaging, file attachments, federation between servers, forward secrecy with key rotation, webhooks for real-time push, rate limiting, SSRF protection, and an MCP App inbox with group creation and AI-assisted drafting. Run your own server or build on the protocol.</p>
-  <div class="protocol-links">
-    <a href="/spec" class="proto-btn primary">Read the Spec</a>
-    <a href="https://github.com/timncox/mmp" class="proto-btn">GitHub</a>
+<!-- Built on MMP -->
+<div class="section-wide section-divider">
+  <div style="max-width:680px;margin:0 auto;padding:100px 0 48px;">
+    <div class="section-label reveal">Ecosystem</div>
+    <h2 class="reveal">Built on MMP</h2>
+    <p class="section-sub reveal">MCP servers that use MMP to reach people. Message them right now from any AI.</p>
+  </div>
+  <div class="bots-grid reveal" style="margin:0 28px;">
+    <div class="bot-card">
+      <div class="bot-stripe civic"></div>
+      <div class="bot-inner">
+        <div class="bot-header">
+          <div class="bot-name display">NYC Civic</div>
+          <div class="bot-handle"><span class="bot-live"></span> @nyc_civic</div>
+        </div>
+        <p class="bot-desc">Look up your elected reps, track city council votes, search legislation, and follow NYC Democratic Party organization — all by district. Runs group chats for each council district so neighbors can discuss local politics.</p>
+        <div class="bot-tags">
+          <span class="bot-tag">City Council</span>
+          <span class="bot-tag">State Legislature</span>
+          <span class="bot-tag">Congress</span>
+          <span class="bot-tag">Group Chats</span>
+        </div>
+        <div class="bot-cmd">
+          <span class="prompt">&gt;</span> <span class="cmd">Send @nyc_civic who represents 100 Broadway?</span>
+        </div>
+        <a href="https://nyc.mmp.chat" class="bot-link">nyc.mmp.chat &rarr;</a>
+      </div>
+    </div>
+    <div class="bot-card">
+      <div class="bot-stripe fighter"></div>
+      <div class="bot-inner">
+        <div class="bot-header">
+          <div class="bot-name display">Ticket Fighter</div>
+          <div class="bot-handle"><span class="bot-live"></span> @ticket_fighter</div>
+        </div>
+        <p class="bot-desc">Monitor your license plates for new parking tickets, get instant alerts, analyze violations for contestable issues, and generate dispute letters — all through DMs.</p>
+        <div class="bot-tags">
+          <span class="bot-tag">Plate Monitoring</span>
+          <span class="bot-tag">Ticket Alerts</span>
+          <span class="bot-tag">Auto-Disputes</span>
+          <span class="bot-tag">NYC Open Data</span>
+        </div>
+        <div class="bot-cmd">
+          <span class="prompt">&gt;</span> <span class="cmd">Send @ticket_fighter monitor plate ABC1234</span>
+        </div>
+        <a href="https://tf.mmp.chat" class="bot-link">tf.mmp.chat &rarr;</a>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="footer">
-  MMP — Model Messaging Protocol &middot; Open source &middot; End-to-end encrypted &middot; Federated
+<!-- Developer -->
+<div class="dev-section">
+  <div class="section-label reveal">Open Source</div>
+  <h2 class="reveal" style="font-family:'Syne',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:700;letter-spacing:-1px;margin-bottom:16px;color:#f0f0f8;">For developers</h2>
+  <p class="reveal" style="font-size:15px;font-weight:300;color:var(--text-2);line-height:1.7;margin-bottom:32px;max-width:540px;margin-left:auto;margin-right:auto;">28 MCP tools, a REST API, group messaging, file attachments, federation, forward secrecy, webhooks, rate limiting, SSRF protection, and an interactive inbox app. Run your own server or build on the protocol.</p>
+  <div class="dev-links reveal">
+    <a href="/spec" class="btn btn-primary">Read the Spec</a>
+    <a href="https://github.com/timncox/mmp" class="btn">GitHub</a>
+  </div>
 </div>
+
+<!-- Footer -->
+<footer class="footer">
+  MMP &middot; Model Messaging Protocol &middot; Open source &middot; End-to-end encrypted &middot; Federated
+</footer>
+
+<script>
+// Copy URL
+function copyUrl(el) {
+  navigator.clipboard.writeText('mmp.chat/mcp');
+  const label = document.getElementById('cta-label');
+  label.textContent = 'copied!';
+  label.style.color = 'var(--accent)';
+  setTimeout(() => { label.textContent = 'copy'; label.style.color = ''; }, 2000);
+}
+
+// Nav status dot
+fetch('/health', { signal: AbortSignal.timeout(5000) })
+  .then(r => { document.getElementById('nav-dot').classList.add(r.ok ? 'live' : 'down'); })
+  .catch(() => { document.getElementById('nav-dot').classList.add('down'); });
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); } });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
 
 </body>
 </html>
