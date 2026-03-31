@@ -456,6 +456,16 @@ app.post("/mcp", async (req, res) => {
     return;
   }
 
+  // Session ID provided but not found (expired or server restarted) — tell client to re-initialize
+  if (sessionId) {
+    res.status(404).json({
+      jsonrpc: "2.0",
+      error: { code: -32000, message: "Session not found. Please re-initialize." },
+      id: req.body?.id ?? null,
+    });
+    return;
+  }
+
   // Reject new sessions if at capacity
   if (transports.size >= MAX_SESSIONS) {
     res.status(503).json({ error: "Server at session capacity. Try again later." });
