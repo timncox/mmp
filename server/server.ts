@@ -309,6 +309,18 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Status page
+app.get("/status", async (_req, res) => {
+  try {
+    const html = await import("node:fs/promises").then((fs) =>
+      fs.readFile(new URL("./public/status.html", import.meta.url), "utf-8")
+    );
+    res.type("html").send(html);
+  } catch {
+    res.type("html").send("<h1>Status page not found</h1>");
+  }
+});
+
 // Landing page
 app.get("/", async (_req, res) => {
   try {

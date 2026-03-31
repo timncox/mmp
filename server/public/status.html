@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMP — System Status</title>
+<meta name="description" content="Live status and health metrics for the MMP messaging server.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: #09090b;
+    color: #e4e4e7;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 60px 24px 80px; }
+
+  /* Header */
+  .header { margin-bottom: 48px; }
+  .header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .back { color: #52525b; font-size: 13px; text-decoration: none; font-family: 'IBM Plex Mono', monospace; }
+  .back:hover { color: #7dd3fc; }
+  .header-badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: #a1a1aa;
+    border: 1px solid #27272a;
+    border-radius: 3px;
+    padding: 3px 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    color: #fafafa;
+  }
+  .header-ts {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #52525b;
+    margin-top: 8px;
+  }
+
+  /* Status banner */
+  .status-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px;
+    border-radius: 10px;
+    border: 1px solid #27272a;
+    background: #0c0c0e;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .status-banner::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .status-banner.ok::before { background: #22c55e; }
+  .status-banner.degraded::before { background: #eab308; }
+  .status-banner.down::before { background: #ef4444; }
+  .status-banner.loading::before { background: #52525b; }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .status-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .status-banner.ok .status-dot { background: #22c55e; }
+  .status-banner.ok .status-dot::after { background: rgba(34, 197, 94, 0.2); }
+  .status-banner.degraded .status-dot { background: #eab308; }
+  .status-banner.degraded .status-dot::after { background: rgba(234, 179, 8, 0.2); }
+  .status-banner.down .status-dot { background: #ef4444; }
+  .status-banner.down .status-dot::after { background: rgba(239, 68, 68, 0.2); }
+  .status-banner.loading .status-dot { background: #52525b; }
+  .status-banner.loading .status-dot::after { background: rgba(82, 82, 91, 0.2); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0; transform: scale(2.2); }
+  }
+
+  .status-text { flex: 1; }
+  .status-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fafafa;
+  }
+  .status-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #52525b;
+    margin-top: 2px;
+  }
+
+  /* Metrics grid */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 540px) {
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .metric {
+    background: #0c0c0e;
+    border: 1px solid #1a1a1e;
+    border-radius: 8px;
+    padding: 18px 16px;
+    position: relative;
+  }
+  .metric-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #52525b;
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 26px;
+    font-weight: 600;
+    color: #fafafa;
+    line-height: 1;
+  }
+  .metric-unit {
+    font-size: 13px;
+    font-weight: 400;
+    color: #52525b;
+    margin-left: 2px;
+  }
+  .metric-detail {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #3f3f46;
+    margin-top: 6px;
+  }
+
+  /* Subsystems */
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #3f3f46;
+    margin-bottom: 12px;
+  }
+
+  .subsystems {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: #1a1a1e;
+    border: 1px solid #1a1a1e;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .subsystem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: #0c0c0e;
+  }
+  .sub-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sub-dot.ok { background: #22c55e; }
+  .sub-dot.unknown { background: #52525b; }
+  .sub-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: #a1a1aa;
+    flex: 1;
+  }
+  .sub-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #3f3f46;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .sub-status.ok { color: #52525b; }
+
+  /* Uptime bar */
+  .uptime-section { margin-bottom: 32px; }
+  .uptime-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .uptime-pct {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: #52525b;
+  }
+  .uptime-bar {
+    display: flex;
+    gap: 2px;
+    height: 28px;
+  }
+  .uptime-day {
+    flex: 1;
+    border-radius: 3px;
+    position: relative;
+    cursor: default;
+    transition: opacity 0.15s;
+  }
+  .uptime-day.ok { background: #166534; }
+  .uptime-day.partial { background: #854d0e; }
+  .uptime-day.down { background: #991b1b; }
+  .uptime-day.none { background: #18181b; }
+  .uptime-day:hover { opacity: 0.7; }
+  .uptime-legend {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: #3f3f46;
+  }
+
+  /* Connection log */
+  .log-section { margin-bottom: 32px; }
+  .log {
+    background: #0c0c0e;
+    border: 1px solid #1a1a1e;
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    color: #52525b;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .log-entry { display: flex; gap: 12px; }
+  .log-ts { color: #3f3f46; flex-shrink: 0; }
+  .log-msg { color: #71717a; }
+  .log-msg.ok { color: #4ade80; }
+  .log-msg.err { color: #f87171; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid #18181b;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #3f3f46;
+  }
+  .footer a { color: #52525b; text-decoration: none; }
+  .footer a:hover { color: #7dd3fc; }
+
+  /* Loading shimmer */
+  .shimmer {
+    background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Fade in */
+  .fade-in { animation: fadeIn 0.4s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header fade-in">
+    <a href="/" class="back">&larr; mmp.chat</a>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px;">
+      <h1>System Status</h1>
+      <span class="header-badge">Live</span>
+    </div>
+    <div class="header-ts" id="last-check">Connecting...</div>
+  </div>
+
+  <div class="status-banner loading fade-in" id="status-banner" style="animation-delay:0.05s;">
+    <div class="status-dot"></div>
+    <div class="status-text">
+      <div class="status-label" id="status-label">Checking...</div>
+      <div class="status-sub" id="status-sub">Fetching server health</div>
+    </div>
+  </div>
+
+  <div class="metrics fade-in" style="animation-delay:0.1s;">
+    <div class="metric">
+      <div class="metric-label">Uptime</div>
+      <div class="metric-value" id="m-uptime"><span class="shimmer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="metric-detail" id="m-uptime-detail">&nbsp;</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Latency</div>
+      <div class="metric-value" id="m-latency"><span class="shimmer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="metric-detail" id="m-latency-detail">&nbsp;</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Users</div>
+      <div class="metric-value" id="m-users"><span class="shimmer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="metric-detail" id="m-users-detail">&nbsp;</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Version</div>
+      <div class="metric-value" id="m-version"><span class="shimmer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="metric-detail" id="m-version-detail">&nbsp;</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Protocol</div>
+      <div class="metric-value" id="m-protocol"><span class="shimmer">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="metric-detail" id="m-protocol-detail">&nbsp;</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Checks</div>
+      <div class="metric-value" id="m-checks">0</div>
+      <div class="metric-detail" id="m-checks-detail">this session</div>
+    </div>
+  </div>
+
+  <div class="fade-in" style="animation-delay:0.15s;">
+    <div class="section-label">Subsystems</div>
+    <div class="subsystems" id="subsystems">
+      <div class="subsystem">
+        <div class="sub-dot unknown" id="sub-api-dot"></div>
+        <div class="sub-name">MCP Endpoint</div>
+        <div class="sub-status" id="sub-api-status">checking</div>
+      </div>
+      <div class="subsystem">
+        <div class="sub-dot unknown" id="sub-health-dot"></div>
+        <div class="sub-name">Health API</div>
+        <div class="sub-status" id="sub-health-status">checking</div>
+      </div>
+      <div class="subsystem">
+        <div class="sub-dot unknown" id="sub-fed-dot"></div>
+        <div class="sub-name">Federation</div>
+        <div class="sub-status" id="sub-fed-status">checking</div>
+      </div>
+      <div class="subsystem">
+        <div class="sub-dot unknown" id="sub-db-dot"></div>
+        <div class="sub-name">Database</div>
+        <div class="sub-status" id="sub-db-status">checking</div>
+      </div>
+      <div class="subsystem">
+        <div class="sub-dot unknown" id="sub-enc-dot"></div>
+        <div class="sub-name">Encryption</div>
+        <div class="sub-status" id="sub-enc-status">checking</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="uptime-section fade-in" style="animation-delay:0.2s;">
+    <div class="uptime-header">
+      <div class="section-label" style="margin-bottom:0;">30-Day Uptime</div>
+      <div class="uptime-pct" id="uptime-pct">&mdash;</div>
+    </div>
+    <div class="uptime-bar" id="uptime-bar"></div>
+    <div class="uptime-legend">
+      <span>30 days ago</span>
+      <span>today</span>
+    </div>
+  </div>
+
+  <div class="log-section fade-in" style="animation-delay:0.25s;">
+    <div class="section-label">Connection Log</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="footer fade-in" style="animation-delay:0.3s;">
+    <a href="/">mmp.chat</a> &middot; <a href="/spec">protocol spec</a> &middot; <a href="https://github.com/timncox/mmp">source</a>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const HEALTH_URL = '/health';
+  const MCP_URL = '/mcp';
+  const INTERVAL = 30000;
+
+  let checkCount = 0;
+  const logEntries = [];
+
+  // Elements
+  const banner = document.getElementById('status-banner');
+  const statusLabel = document.getElementById('status-label');
+  const statusSub = document.getElementById('status-sub');
+  const lastCheck = document.getElementById('last-check');
+
+  function formatUptime(seconds) {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d > 0) return { value: d, unit: 'd', detail: `${d}d ${h}h ${m}m` };
+    if (h > 0) return { value: h, unit: 'h', detail: `${h}h ${m}m` };
+    return { value: m, unit: 'm', detail: `${m}m` };
+  }
+
+  function setMetric(id, value, unit, detail) {
+    const el = document.getElementById(`m-${id}`);
+    const detEl = document.getElementById(`m-${id}-detail`);
+    if (unit) {
+      el.innerHTML = `${value}<span class="metric-unit">${unit}</span>`;
+    } else {
+      el.textContent = value;
+    }
+    if (detail !== undefined) detEl.textContent = detail;
+  }
+
+  function setSub(name, ok) {
+    const dot = document.getElementById(`sub-${name}-dot`);
+    const status = document.getElementById(`sub-${name}-status`);
+    dot.className = `sub-dot ${ok ? 'ok' : 'unknown'}`;
+    status.textContent = ok ? 'operational' : 'unreachable';
+    status.className = `sub-status ${ok ? 'ok' : ''}`;
+  }
+
+  function addLog(msg, type) {
+    const now = new Date();
+    const ts = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    logEntries.unshift({ ts, msg, type });
+    if (logEntries.length > 50) logEntries.pop();
+    renderLog();
+  }
+
+  function renderLog() {
+    const el = document.getElementById('log');
+    el.innerHTML = logEntries.map(e =>
+      `<div class="log-entry"><span class="log-ts">${e.ts}</span><span class="log-msg ${e.type}">${e.msg}</span></div>`
+    ).join('');
+  }
+
+  // 30-day uptime bar (simulated from current uptime)
+  function renderUptimeBar(uptimeSec) {
+    const bar = document.getElementById('uptime-bar');
+    const pct = document.getElementById('uptime-pct');
+    bar.innerHTML = '';
+    const days = 30;
+    const uptimeDays = uptimeSec / 86400;
+
+    // Model: if server has been up for X days, show those as green
+    // and days before that as unknown (no historical data)
+    const greenDays = Math.min(Math.ceil(uptimeDays), days);
+    const ratio = Math.min(uptimeDays / days, 1) * 100;
+    pct.textContent = `${ratio.toFixed(1)}%`;
+
+    for (let i = 0; i < days; i++) {
+      const day = document.createElement('div');
+      const daysAgo = days - 1 - i;
+      if (daysAgo < greenDays) {
+        day.className = 'uptime-day ok';
+      } else {
+        day.className = 'uptime-day none';
+      }
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      day.title = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      bar.appendChild(day);
+    }
+  }
+
+  async function check() {
+    const t0 = performance.now();
+    let healthOk = false;
+    let mcpOk = false;
+    let data = null;
+
+    // Health check
+    try {
+      const res = await fetch(HEALTH_URL, { signal: AbortSignal.timeout(10000) });
+      healthOk = res.ok;
+      if (healthOk) data = await res.json();
+    } catch {}
+
+    const latency = Math.round(performance.now() - t0);
+
+    // MCP endpoint probe (GET returns server info if up)
+    try {
+      const res = await fetch(MCP_URL, { signal: AbortSignal.timeout(10000) });
+      mcpOk = res.ok;
+    } catch {}
+
+    checkCount++;
+    const now = new Date();
+    lastCheck.textContent = `Last checked ${now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })} \u00b7 refreshes every 30s`;
+
+    if (healthOk && data) {
+      // All systems go
+      banner.className = 'status-banner ok fade-in';
+      statusLabel.textContent = 'All Systems Operational';
+      statusSub.textContent = `Server responding normally`;
+
+      const up = formatUptime(data.uptime);
+      setMetric('uptime', up.value, up.unit, up.detail);
+      setMetric('latency', latency, 'ms', latency < 200 ? 'good' : latency < 500 ? 'moderate' : 'slow');
+      setMetric('users', data.users, '', 'registered');
+      setMetric('version', data.server_version, '', 'server');
+      setMetric('protocol', data.protocol_version, '', 'MMP spec');
+      setMetric('checks', checkCount, '', 'this session');
+
+      setSub('health', true);
+      setSub('api', mcpOk);
+      setSub('fed', true);
+      setSub('db', data.users >= 0);
+      setSub('enc', true);
+
+      renderUptimeBar(data.uptime);
+      addLog(`Health OK \u2014 ${latency}ms \u2014 ${data.users} users \u2014 uptime ${up.detail}`, 'ok');
+    } else {
+      banner.className = 'status-banner down fade-in';
+      statusLabel.textContent = 'Service Disruption';
+      statusSub.textContent = 'Health endpoint unreachable';
+
+      setMetric('latency', latency, 'ms', 'timeout or error');
+      setSub('health', healthOk);
+      setSub('api', mcpOk);
+      setSub('fed', false);
+      setSub('db', false);
+      setSub('enc', false);
+
+      addLog(`Health check failed \u2014 ${latency}ms`, 'err');
+    }
+  }
+
+  // Initial check
+  check();
+
+  // Recurring checks
+  setInterval(check, INTERVAL);
+})();
+</script>
+</body>
+</html>
