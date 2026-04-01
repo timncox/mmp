@@ -90,6 +90,7 @@ export function renderThreadView(
   wrapper.style.flexDirection = "column";
   wrapper.style.flex = "1";
   wrapper.style.minHeight = "0";
+  wrapper.style.overflow = "hidden";
 
   // Header
   const header = document.createElement("div");
