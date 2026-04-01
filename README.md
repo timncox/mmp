@@ -319,6 +319,7 @@ mmp/
 ├── app/                  # MCP App inbox UI (Vite + TypeScript)
 │   └── src/
 │       ├── crypto/       # Client-side NaCl for E2E mode
+│       ├── navigation.ts # Shared nav types/callback (breaks circular dep)
 │       └── views/        # Inbox, thread, compose (DM + group), settings
 ├── spec/                 # Protocol specification
 └── Dockerfile            # Production container
