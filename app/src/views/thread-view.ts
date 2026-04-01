@@ -24,6 +24,7 @@ interface ThreadDetail {
   name?: string;
   subject: string;
   messages: MessageData[];
+  has_more?: boolean;
   members?: { handle: string; display_name: string; role: string }[];
   other_handle?: string;
   other_public_key?: string;
@@ -88,6 +89,40 @@ export function renderThreadView(
   messagesEl.className = "messages-container";
   wrapper.appendChild(messagesEl);
 
+  // Lazy-load older messages on scroll-up
+  messagesEl.addEventListener("scroll", async () => {
+    if (messagesEl.scrollTop < 50 && hasMore && !loadingMore) {
+      loadingMore = true;
+      const oldest = allMessages.reduce((min, m) => m.created_at < min ? m.created_at : min, Infinity);
+      try {
+        const result = await app.callServerTool({
+          name: "mmp-thread",
+          arguments: { thread_id: threadId, limit: 30, before: oldest },
+        });
+        const content = result?.content;
+        const textItem = content?.find((c: { type: string }) => c.type === "text") as { type: "text"; text: string } | undefined;
+        if (textItem) {
+          const older = JSON.parse(textItem.text) as ThreadDetail;
+          hasMore = older.has_more ?? false;
+          if (older.messages.length > 0) {
+            // Deduplicate by id
+            const existingIds = new Set(allMessages.map(m => m.id));
+            const newMsgs = older.messages.filter(m => !existingIds.has(m.id));
+            allMessages = [...newMsgs, ...allMessages];
+            // Remember scroll position to prevent jump
+            const prevHeight = messagesEl.scrollHeight;
+            renderMessages(allMessages, false);
+            messagesEl.scrollTop = messagesEl.scrollHeight - prevHeight;
+          }
+        }
+      } catch {
+        // Ignore load-more failures
+      } finally {
+        loadingMore = false;
+      }
+    }
+  });
+
   // AI action buttons
   const aiActions = document.createElement("div");
   aiActions.style.display = "flex";
@@ -111,6 +146,9 @@ export function renderThreadView(
   container.appendChild(wrapper);
 
   let threadData: ThreadDetail | null = null;
+  let allMessages: MessageData[] = [];
+  let hasMore = false;
+  let loadingMore = false;
 
   // Wire up action buttons
   const starBtn = header.querySelector("#star-btn") as HTMLButtonElement;
@@ -263,7 +301,7 @@ export function renderThreadView(
     return lines.join("\n");
   }
 
-  function renderMessages(messages: MessageData[]): void {
+  function renderMessages(messages: MessageData[], scrollToBottom = true): void {
     messagesEl.innerHTML = "";
 
     if (messages.length === 0) {
@@ -307,7 +345,9 @@ export function renderThreadView(
     });
 
     // Scroll to bottom
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    if (scrollToBottom) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
   }
 
   async function loadThread(): Promise<void> {
@@ -347,6 +387,8 @@ export function renderThreadView(
       }
 
       threadData = parsed;
+      allMessages = parsed.messages ?? [];
+      hasMore = parsed.has_more ?? false;
 
       // Update header
       const subjectEl = header.querySelector("#thread-subject")!;
@@ -361,7 +403,7 @@ export function renderThreadView(
         starBtn.innerHTML = "&#9733;";
       }
 
-      renderMessages(parsed.messages ?? []);
+      renderMessages(allMessages);
 
       // Mark as read
       try {

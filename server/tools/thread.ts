@@ -13,9 +13,11 @@ export function registerThreadTool(
     description: "Get a single thread (DM or group) with all its messages. Returns thread metadata, messages (decrypted if server-assisted), member info, and attachment metadata.",
     inputSchema: {
       thread_id: z.string().describe("The thread ID to fetch"),
+      limit: z.number().optional().default(30).describe("Max messages to return (default 30)"),
+      before: z.number().optional().describe("Unix epoch seconds — only return messages before this timestamp"),
     },
     _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
-  }, async ({ thread_id }) => {
+  }, async ({ thread_id, limit, before }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -63,7 +65,7 @@ export function registerThreadTool(
         };
       });
 
-      const rawMessages = db.getMessagesForThread(thread_id, 200);
+      const rawMessages = db.getMessagesForThread(thread_id, (limit ?? 30) + 1, before);
 
       // Deduplicate fan-out messages for groups (same from_user + created_at)
       const seen = new Set<string>();
@@ -81,7 +83,10 @@ export function registerThreadTool(
         return true;
       });
 
-      const messages = deduped.map((msg) => {
+      const hasMore = deduped.length > (limit ?? 30);
+      const trimmed = hasMore ? deduped.slice(0, limit ?? 30) : deduped;
+
+      const messages = trimmed.map((msg) => {
         const fromUser = db.getUserById(msg.from_user_id);
         const toUser = db.getUserById(msg.to_user_id);
         let body: string | null = null;
@@ -138,6 +143,7 @@ export function registerThreadTool(
         type: thread.type,
         subject: thread.subject,
         messages,
+        has_more: hasMore,
         members: memberInfo,
         member_state: member.state,
       };
