@@ -21,9 +21,11 @@ export function registerProfileTool(
         .enum(["public", "contacts_only", "private"])
         .optional()
         .describe("Privacy level"),
+      type: z.enum(["user", "bot"]).optional().describe("Account type"),
+      capabilities: z.string().optional().describe("JSON array of capabilities"),
     },
     _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
-  }, async ({ display_name, bio, status, privacy }) => {
+  }, async ({ display_name, bio, status, privacy, type, capabilities }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -37,6 +39,24 @@ export function registerProfileTool(
       if (bio !== undefined) updates.bio = bio;
       if (status !== undefined) updates.status = status;
       if (privacy !== undefined) updates.privacy = privacy;
+      if (type !== undefined) updates.type = type;
+      if (capabilities !== undefined) {
+        try {
+          const parsed = JSON.parse(capabilities);
+          if (!Array.isArray(parsed)) {
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify({ error: "capabilities must be a JSON array." }) }],
+              isError: true,
+            };
+          }
+          updates.capabilities = capabilities;
+        } catch {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: "capabilities must be valid JSON." }) }],
+            isError: true,
+          };
+        }
+      }
 
       if (Object.keys(updates).length === 0) {
         return {

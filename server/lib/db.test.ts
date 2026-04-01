@@ -36,6 +36,8 @@ function makeUser(overrides: Partial<import("./types.js").User> = {}): import(".
     public_key: "pk_test",
     private_key: "sk_test",
     client_public_key: null,
+    type: "user",
+    capabilities: "[]",
     token_hash: `hash_${id}`,
     recovery_code_hash: `recovery_${id}`,
     created_at: Math.floor(Date.now() / 1000),
@@ -280,6 +282,8 @@ describe("Database", () => {
         sender_pub_key: "pk_sender",
         encryption_mode: "e2e",
         key_epoch: 0,
+        content_type: "text",
+        call_id: null,
         created_at: ts,
       });
 
@@ -319,6 +323,8 @@ describe("Database", () => {
         sender_pub_key: "pk",
         encryption_mode: "e2e",
         key_epoch: 0,
+        content_type: "text",
+        call_id: null,
         created_at: ts,
       });
 
@@ -363,7 +369,9 @@ describe("Database", () => {
           nonce: "n",
           sender_pub_key: "pk",
           encryption_mode: "e2e",
-        key_epoch: 0,
+          key_epoch: 0,
+          content_type: "text",
+          call_id: null,
           created_at: ts + i + 1,
         });
       }

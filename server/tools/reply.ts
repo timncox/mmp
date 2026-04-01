@@ -127,6 +127,8 @@ export function registerReplyTool(
           sender_pub_key: senderPubKey,
           encryption_mode: encryptionMode,
           key_epoch: keyEpoch,
+          content_type: "text" as const,
+          call_id: null,
           created_at: now,
         });
 

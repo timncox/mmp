@@ -44,9 +44,15 @@ export function registerSendTool(
         .default("normal")
         .describe("Message priority"),
       thread_id: z.string().optional().describe("Thread ID to send into (required for groups, optional for DMs)"),
+      content_type: z
+        .enum(["text", "tool_call", "tool_result", "authorization_request", "authorization_grant"])
+        .optional()
+        .default("text")
+        .describe("Message content type"),
+      call_id: z.string().optional().describe("Correlation ID for tool_call/tool_result messages"),
     },
     _meta: { ui: { resourceUri: "ui://mmp/inbox.html" } },
-  }, async ({ to, body, attachments, encrypted_payload, priority, thread_id }) => {
+  }, async ({ to, body, attachments, encrypted_payload, priority, thread_id, content_type, call_id }) => {
       const user = getUser();
       if (!user) {
         return {
@@ -132,6 +138,8 @@ export function registerSendTool(
               sender_pub_key: senderPubKey,
               encryption_mode: encryptionMode,
               key_epoch: keyEpochGroup,
+              content_type: content_type ?? "text",
+              call_id: call_id ?? null,
               created_at: now,
             });
 
@@ -169,6 +177,8 @@ export function registerSendTool(
                 to_handle: r.handle,
                 priority: priority ?? "normal",
                 has_attachments: (attachments?.length ?? 0) > 0,
+                content_type: content_type ?? "text",
+                call_id: call_id ?? undefined,
                 timestamp: now,
               });
             }
@@ -339,6 +349,8 @@ export function registerSendTool(
           sender_pub_key: senderPubKey,
           encryption_mode: encryptionMode,
           key_epoch: keyEpoch,
+          content_type: content_type ?? "text",
+          call_id: call_id ?? null,
           created_at: now,
         });
 
@@ -449,6 +461,8 @@ export function registerSendTool(
         sender_pub_key: senderPubKey,
         encryption_mode: encryptionMode,
         key_epoch: keyEpoch,
+        content_type: content_type ?? "text",
+        call_id: call_id ?? null,
         created_at: now,
       });
 
@@ -482,6 +496,8 @@ export function registerSendTool(
         to_handle: recipient.handle,
         priority: priority ?? "normal",
         has_attachments: (attachments?.length ?? 0) > 0,
+        content_type: content_type ?? "text",
+        call_id: call_id ?? undefined,
         timestamp: now,
       });
 

@@ -124,6 +124,8 @@ export function registerThreadTool(
           sender_pub_key: msg.encryption_mode === "e2e" ? msg.sender_pub_key : undefined,
           priority: msg.priority,
           encryption_mode: msg.encryption_mode,
+          content_type: msg.content_type ?? "text",
+          call_id: msg.call_id ?? undefined,
           reply_to: msg.reply_to,
           attachments: attachmentInfo,
           created_at: msg.created_at,

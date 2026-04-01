@@ -33,6 +33,7 @@ export function registerSearchUsersTool(
           display_name: u.display_name,
           bio: u.bio,
           status: u.status,
+          type: u.type,
         }));
 
       return {

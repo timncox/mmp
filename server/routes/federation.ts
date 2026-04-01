@@ -150,6 +150,8 @@ export function mountFederationRoutes(app: Express, db: Db, serverUrl: string): 
       sender_pub_key: envelope.sender_pub_key,
       encryption_mode: envelope.encryption_mode,
       key_epoch: envelope.key_epoch || 0,
+      content_type: "text",
+      call_id: null,
       created_at: envelope.timestamp,
     });
 

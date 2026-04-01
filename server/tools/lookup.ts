@@ -57,6 +57,8 @@ export function registerLookupTool(
               public_key: target.public_key,
               client_public_key: target.client_public_key,
               privacy: target.privacy,
+              type: target.type,
+              capabilities: JSON.parse(target.capabilities || "[]"),
               ...(redirected ? { redirected_from: handle } : {}),
             }),
           },
