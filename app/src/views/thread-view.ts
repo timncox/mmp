@@ -32,6 +32,30 @@ interface ThreadDetail {
   member_state: string;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function renderMarkdown(text: string): string {
+  return escapeHtml(text)
+    // Bold: **text**
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    // Italic: *text*
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
+    // Inline code: `text`
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:1px 4px;border-radius:3px;font-size:13px">$1</code>')
+    // Links: [text](url)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">$1</a>')
+    // Bare URLs
+    .replace(/(?<!")https?:\/\/[^\s<)]+/g, '<a href="$&" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">$&</a>')
+    // Newlines
+    .replace(/\n/g, "<br>");
+}
+
 function formatTime(epochSec: number): string {
   const d = new Date(epochSec * 1000);
   const now = new Date();
@@ -338,7 +362,7 @@ export function renderThreadView(
 
       const bubble = document.createElement("div");
       bubble.className = `message-bubble ${isMine ? "sent" : "received"}`;
-      bubble.textContent = body ?? "[Unable to decrypt]";
+      bubble.innerHTML = body ? renderMarkdown(body) : "[Unable to decrypt]";
       msgWrapper.appendChild(bubble);
 
       messagesEl.appendChild(msgWrapper);
