@@ -90,7 +90,7 @@ export function registerOpenInboxTool(
       description: "Interactive MMP inbox interface",
       _meta: {
         ui: {
-          domain: "https://mmp.chat",
+          domain: "a46c3a63c62bb2f9177f2f9491ae68bd.claudemcpcontent.com",
           csp: {
             connectDomains: ["https://mmp.chat"],
             resourceDomains: [],
@@ -108,7 +108,7 @@ export function registerOpenInboxTool(
             text: html,
             _meta: {
               ui: {
-                domain: "https://mmp.chat",
+                domain: "a46c3a63c62bb2f9177f2f9491ae68bd.claudemcpcontent.com",
                 csp: {
                   connectDomains: ["https://mmp.chat"],
                   resourceDomains: [],

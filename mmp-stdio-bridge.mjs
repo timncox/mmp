@@ -33,6 +33,8 @@ function enqueue(message) {
 
 async function sendToServer(message) {
   try {
+    process.stderr.write(`[bridge] → ${message.method || "response"} id=${message.id ?? "none"} session=${sessionId ?? "none"}\n`);
+
     const headers = {
       "Content-Type": "application/json",
       "Accept": "application/json, text/event-stream",
@@ -46,12 +48,15 @@ async function sendToServer(message) {
       signal: AbortSignal.timeout(30000),
     });
 
+    process.stderr.write(`[bridge] ← ${res.status} ${res.headers.get("content-type") ?? "no-ct"} session=${res.headers.get("mcp-session-id") ?? "none"}\n`);
+
     const sid = res.headers.get("mcp-session-id");
     if (sid) sessionId = sid;
 
     // Notifications have no id — drain response, don't output
     if (message.id === undefined || message.id === null) {
       await res.text();
+      process.stderr.write(`[bridge] notification drained\n`);
       return;
     }
 
@@ -59,16 +64,20 @@ async function sendToServer(message) {
 
     if (contentType.includes("text/event-stream")) {
       const text = await res.text();
+      let count = 0;
       for (const line of text.split("\n")) {
         if (line.startsWith("data: ")) {
           process.stdout.write(line.slice(6) + "\n");
+          count++;
         }
       }
+      process.stderr.write(`[bridge] SSE: ${count} data lines\n`);
     } else {
       const data = await res.text();
       if (data.trim()) {
         process.stdout.write(data + "\n");
       }
+      process.stderr.write(`[bridge] JSON: ${data.length} bytes\n`);
     }
   } catch (err) {
     if (message.id !== undefined && message.id !== null) {
