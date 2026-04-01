@@ -28,6 +28,7 @@ export interface Db {
   getUserByTokenHash(hash: string): User | undefined;
   updateUser(id: string, fields: Partial<Omit<User, "id">>): void;
   searchUsers(query: string): User[];
+  discoverBots(query: string, limit: number): User[];
 
   // Handle history
   addHandleRedirect(entry: HandleHistory): void;
@@ -81,6 +82,10 @@ export interface Db {
   // Attachments
   createAttachment(attachment: Attachment): void;
   getAttachmentsForMessage(messageId: string): Attachment[];
+  getAttachmentById(id: string): Attachment | undefined;
+
+  // Messages (single)
+  getMessageById(id: string): Message | undefined;
 
   // Group operations
   addThreadMember(threadId: string, userId: string, role?: string): void;
@@ -131,6 +136,8 @@ export function createDb(path: string): Db {
       client_public_key TEXT,
       token_hash TEXT NOT NULL,
       recovery_code_hash TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'user',
+      capabilities TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -173,6 +180,8 @@ export function createDb(path: string): Db {
       sender_pub_key TEXT NOT NULL,
       encryption_mode TEXT NOT NULL DEFAULT 'e2e',
       key_epoch INTEGER NOT NULL DEFAULT 0,
+      content_type TEXT NOT NULL DEFAULT 'text',
+      call_id TEXT,
       created_at INTEGER NOT NULL
     );
 
@@ -283,15 +292,35 @@ export function createDb(path: string): Db {
     db.exec("UPDATE thread_members SET starred = 1, state = 'active' WHERE state = 'starred'");
   }
 
+  // Agent protocol: add type and capabilities to users
+  const userCols2 = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+  const userColNames2 = new Set(userCols2.map((c) => c.name));
+  if (!userColNames2.has("type")) {
+    db.exec("ALTER TABLE users ADD COLUMN type TEXT NOT NULL DEFAULT 'user'");
+  }
+  if (!userColNames2.has("capabilities")) {
+    db.exec("ALTER TABLE users ADD COLUMN capabilities TEXT NOT NULL DEFAULT '[]'");
+  }
+
+  // Agent protocol: add content_type and call_id to messages
+  const msgCols2 = db.prepare("PRAGMA table_info(messages)").all() as { name: string }[];
+  const msgColNames2 = new Set(msgCols2.map((c) => c.name));
+  if (!msgColNames2.has("content_type")) {
+    db.exec("ALTER TABLE messages ADD COLUMN content_type TEXT NOT NULL DEFAULT 'text'");
+  }
+  if (!msgColNames2.has("call_id")) {
+    db.exec("ALTER TABLE messages ADD COLUMN call_id TEXT");
+  }
+
   // Prepared statements
   const stmts = {
     insertUser: db.prepare(`
       INSERT INTO users (id, handle, display_name, bio, privacy, status,
         public_key, private_key, client_public_key, token_hash,
-        recovery_code_hash, created_at, updated_at)
+        recovery_code_hash, type, capabilities, created_at, updated_at)
       VALUES (@id, @handle, @display_name, @bio, @privacy, @status,
         @public_key, @private_key, @client_public_key, @token_hash,
-        @recovery_code_hash, @created_at, @updated_at)
+        @recovery_code_hash, @type, @capabilities, @created_at, @updated_at)
     `),
     getUserById: db.prepare("SELECT * FROM users WHERE id = ?"),
     getUserByHandle: db.prepare("SELECT * FROM users WHERE handle = ?"),
@@ -300,6 +329,11 @@ export function createDb(path: string): Db {
     ),
     searchUsers: db.prepare(
       "SELECT * FROM users WHERE handle LIKE ? OR display_name LIKE ? LIMIT 50",
+    ),
+    discoverBots: db.prepare(
+      `SELECT * FROM users WHERE type = 'bot' AND privacy != 'private'
+       AND (handle LIKE ? OR display_name LIKE ? OR bio LIKE ? OR capabilities LIKE ?)
+       LIMIT ?`
     ),
 
     insertHandleRedirect: db.prepare(
@@ -334,9 +368,11 @@ export function createDb(path: string): Db {
 
     insertMessage: db.prepare(`
       INSERT INTO messages (id, thread_id, from_user_id, to_user_id, reply_to,
-        priority, ciphertext, nonce, sender_pub_key, encryption_mode, key_epoch, created_at)
+        priority, ciphertext, nonce, sender_pub_key, encryption_mode, key_epoch,
+        content_type, call_id, created_at)
       VALUES (@id, @thread_id, @from_user_id, @to_user_id, @reply_to,
-        @priority, @ciphertext, @nonce, @sender_pub_key, @encryption_mode, @key_epoch, @created_at)
+        @priority, @ciphertext, @nonce, @sender_pub_key, @encryption_mode, @key_epoch,
+        @content_type, @call_id, @created_at)
     `),
     getMessagesForThread: db.prepare(
       "SELECT * FROM messages WHERE thread_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
@@ -388,6 +424,12 @@ export function createDb(path: string): Db {
     `),
     getAttachmentsForMessage: db.prepare(
       "SELECT * FROM attachments WHERE message_id = ?",
+    ),
+    getAttachmentById: db.prepare(
+      "SELECT * FROM attachments WHERE id = ?",
+    ),
+    getMessageById: db.prepare(
+      "SELECT * FROM messages WHERE id = ?",
     ),
 
     // Group operations
@@ -508,6 +550,7 @@ export function createDb(path: string): Db {
         "handle", "display_name", "bio", "privacy", "status",
         "public_key", "private_key", "client_public_key",
         "token_hash", "recovery_code_hash",
+        "type", "capabilities",
       ]);
       const safeKeys = Object.keys(fields).filter((k) => ALLOWED_COLS.has(k));
       if (safeKeys.length === 0) return;
@@ -522,6 +565,11 @@ export function createDb(path: string): Db {
     searchUsers(query: string): User[] {
       const pattern = `%${query}%`;
       return stmts.searchUsers.all(pattern, pattern) as User[];
+    },
+
+    discoverBots(query: string, limit: number): User[] {
+      const pattern = `%${query}%`;
+      return stmts.discoverBots.all(pattern, pattern, pattern, pattern, limit) as User[];
     },
 
     // Handle history
@@ -716,6 +764,14 @@ export function createDb(path: string): Db {
 
     getAttachmentsForMessage(messageId: string): Attachment[] {
       return stmts.getAttachmentsForMessage.all(messageId) as Attachment[];
+    },
+
+    getAttachmentById(id: string): Attachment | undefined {
+      return stmts.getAttachmentById.get(id) as Attachment | undefined;
+    },
+
+    getMessageById(id: string): Message | undefined {
+      return stmts.getMessageById.get(id) as Message | undefined;
     },
 
     // Group operations

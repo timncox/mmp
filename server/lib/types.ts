@@ -5,6 +5,8 @@ export interface User {
   bio: string;
   privacy: "public" | "contacts_only" | "private";
   status: string;
+  type: "user" | "bot";
+  capabilities: string; // JSON array stored as string
   public_key: string;
   private_key: string;
   client_public_key: string | null;
@@ -46,6 +48,8 @@ export interface Message {
   encryption_mode: "e2e" | "server_assisted";
   key_epoch: number;
   created_at: number;
+  content_type: "text" | "tool_call" | "tool_result" | "authorization_request" | "authorization_grant";
+  call_id: string | null;
 }
 
 export interface Contact {
@@ -209,4 +213,6 @@ export interface WebhookPayload {
   priority: string;
   has_attachments: boolean;
   timestamp: number;
+  content_type?: string;
+  call_id?: string;
 }
