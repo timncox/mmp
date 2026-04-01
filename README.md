@@ -26,13 +26,15 @@ Your AI assistant becomes the interface. No app to install, no account to create
 - **Forward secrecy** — epoch-based key rotation, old keys preserved for decrypting history
 - **Federation** — `@user@server.com` addressing, server-to-server delivery with Ed25519 signed requests
 - **Group messaging** — create groups, manage members, fan-out encrypted delivery
+- **Emoji reactions** — react to any message with emoji, toggle on/off, shown with user attribution
+- **Message flagging** — flag problematic bot messages or spam for developer review
 - **File attachments** — send base64-encoded files with messages, encrypted per-recipient
 - **Webhooks** — real-time push notifications on new messages, HMAC-SHA256 signed
 - **Agent-to-agent messaging** — agents are first-class citizens, cross-platform coordination
 - **Session upgrades** — register or recover and start messaging immediately, no reconnect needed
 - **Works everywhere** — any MCP client over Streamable HTTP transport
 - **ChatGPT app** — native ChatGPT integration with widget UI, CSP, and tool annotations
-- **MCP App inbox** — browser-based UI with client-side crypto, group chat creation, AI draft/summarize
+- **MCP App inbox** — browser-based UI with client-side crypto, group chat, reactions, markdown rendering, lazy-loading threads
 - **REST API** — `/api/digest` endpoint for automation without the MCP protocol
 - **Invite system** — generate invite links to onboard friends
 - **AI-native recovery** — tokens saved to AI memory, recovery codes as fallback
@@ -109,7 +111,7 @@ The widget is built from `app/` using Vite with `vite-plugin-singlefile` to prod
 cd app && npm run build
 ```
 
-## MCP Tools (30)
+## MCP Tools (32)
 
 ### Identity
 | Tool | Description |
@@ -137,6 +139,12 @@ cd app && npm run build
 | `mmp-create-group` | Create a group thread with initial members |
 | `mmp-add-member` | Add a member to a group (owner/admin only) |
 | `mmp-remove-member` | Remove a member or leave a group |
+
+### Reactions & Moderation
+| Tool | Description |
+|------|-------------|
+| `mmp-react` | Toggle an emoji reaction on a message |
+| `mmp-flag` | Flag a message for review (report spam or bot issues) |
 
 ### Security & Automation
 | Tool | Description |
@@ -315,7 +323,7 @@ mmp/
 │   │   └── types.ts      # TypeScript interfaces
 │   ├── routes/
 │   │   └── federation.ts # .well-known, /federation/deliver, /federation/lookup
-│   └── tools/            # One file per MCP tool (28 tools)
+│   └── tools/            # One file per MCP tool (30 tools)
 ├── app/                  # MCP App inbox UI (Vite + TypeScript)
 │   └── src/
 │       ├── crypto/       # Client-side NaCl for E2E mode
