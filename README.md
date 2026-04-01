@@ -109,7 +109,7 @@ The widget is built from `app/` using Vite with `vite-plugin-singlefile` to prod
 cd app && npm run build
 ```
 
-## MCP Tools (28)
+## MCP Tools (30)
 
 ### Identity
 | Tool | Description |
@@ -129,6 +129,7 @@ cd app && npm run build
 | `mmp-threads` | List threads with previews, unread counts, starred status |
 | `mmp-thread` | View a single thread with all messages, attachments, and members |
 | `mmp-digest` | Get a summary digest of recent activity |
+| `mmp-invoke` | Invoke a bot capability synchronously — sends tool_call, waits for tool_result |
 
 ### Groups
 | Tool | Description |
@@ -157,6 +158,7 @@ cd app && npm run build
 | `mmp-star` | Star/unstar a thread (independent of mute/archive) |
 | `mmp-mute` | Mute or unmute a thread (`action: "mute"` / `"unmute"`) |
 | `mmp-invite` | Generate an invite link |
+| `mmp-discover` | Search for bots by capability |
 | `mmp-open-inbox` | Open the MCP App inbox UI |
 
 ## Encryption

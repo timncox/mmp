@@ -1963,6 +1963,290 @@ Federation is not implemented in v0.1 and is described here as a design directio
 
 ---
 
+## 13. Agent Protocol
+
+MMP treats agents as first-class participants. Any MCP client — human or automated — can register a handle and send or receive messages. Section 13 formalizes the additional conventions that enable structured agent-to-agent interaction: profile metadata for capability advertisement, structured message content types, synchronous invocation, bot discovery, and an authorization flow for sensitive operations.
+
+### 13.1 Profile Extensions
+
+User profiles (Section 3.5) MAY include two additional fields to identify and describe agent participants:
+
+| Field          | Type             | Default    | Description                                          |
+|----------------|------------------|------------|------------------------------------------------------|
+| `type`         | string           | `"human"`  | Participant type: `"human"` or `"bot"`               |
+| `capabilities` | array of strings | `[]`       | Machine-readable list of capabilities the bot offers |
+
+`type` is used by clients and tools to distinguish human users from automated agents. A value of `"bot"` indicates the account is operated by software rather than a person.
+
+`capabilities` is an opaque string list whose values are defined by the bot author. Conventions for capability naming are not mandated by this specification, but implementors SHOULD use short, lowercase, dot-namespaced identifiers (e.g., `"lookup.reps"`, `"tickets.dispute"`). Capabilities are indexed by the server and searchable via `mmp-discover` (Section 13.4).
+
+Both fields MAY be set at registration via `mmp-register` or updated later via `mmp-set_profile`.
+
+### 13.2 Structured Content Types
+
+Messages between agents MAY carry structured payloads beyond plain text. The content type of a message is indicated by a `content_type` field stored alongside the message body.
+
+#### 13.2.1 Content Type Field
+
+| Value                    | Description                                                    |
+|--------------------------|----------------------------------------------------------------|
+| `text`                   | Default. Plain text message body. No additional structure.     |
+| `tool_call`              | A request to invoke a named capability. Body is a JSON object. |
+| `tool_result`            | The response to a prior `tool_call`. Body is a JSON object.    |
+| `authorization_request`  | A request for the recipient to grant authorization. Body is a JSON object. |
+| `authorization_grant`    | Confirmation that authorization has been granted. Body is a JSON object. |
+
+When `content_type` is omitted, `"text"` is assumed. Clients that do not recognize a `content_type` value SHOULD treat the message as plain text.
+
+#### 13.2.2 Call ID
+
+Messages with `content_type` of `tool_call`, `tool_result`, `authorization_request`, or `authorization_grant` SHOULD include a `call_id` field — a UUID v4 that correlates the request and response across multiple messages.
+
+- A `tool_call` message sets `call_id` to a fresh UUID.
+- The corresponding `tool_result`, `authorization_request`, or `authorization_grant` message echoes the same `call_id`.
+- A single invocation flow (call → result, or call → auth_request → auth_grant → result) shares one `call_id` throughout.
+
+#### 13.2.3 Structured Body Formats
+
+**tool_call** body:
+
+```json
+{
+  "tool": "lookup.reps",
+  "input": { "address": "100 Broadway, New York, NY" }
+}
+```
+
+**tool_result** body:
+
+```json
+{
+  "success": true,
+  "output": { "council_member": "Alice Smith", "district": 1 }
+}
+```
+
+or on failure:
+
+```json
+{
+  "success": false,
+  "error": "Address not found"
+}
+```
+
+**authorization_request** body:
+
+```json
+{
+  "tool": "tickets.dispute",
+  "reason": "Submitting a dispute letter requires access to your ticket record.",
+  "scope": ["tickets.read", "tickets.write"]
+}
+```
+
+**authorization_grant** body:
+
+```json
+{
+  "granted": true,
+  "scope": ["tickets.read", "tickets.write"]
+}
+```
+
+### 13.3 mmp-invoke
+
+`mmp-invoke` is a synchronous invocation tool that sends a `tool_call` message to a bot and waits for the corresponding `tool_result` (or a timeout or authorization challenge).
+
+**Authentication**: Required
+**Visibility**: Model-visible
+
+**Description**: `"Invoke a bot capability synchronously — sends a tool_call message and waits for the tool_result response."`
+
+**Input Schema**:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "to": {
+      "type": "string",
+      "description": "Handle of the bot to invoke (without @ prefix)"
+    },
+    "tool": {
+      "type": "string",
+      "description": "Capability name to invoke (e.g., lookup.reps)"
+    },
+    "input": {
+      "type": "object",
+      "description": "Input parameters for the capability (arbitrary JSON object)"
+    },
+    "timeout": {
+      "type": "integer",
+      "description": "Seconds to wait for a response before returning timeout. Default 30, max 120.",
+      "minimum": 1,
+      "maximum": 120
+    }
+  },
+  "required": ["to", "tool", "input"]
+}
+```
+
+**Output** (success):
+
+```json
+{
+  "status": "success",
+  "call_id": "<uuid>",
+  "output": { ... }
+}
+```
+
+**Output** (timeout):
+
+```json
+{
+  "status": "timeout",
+  "call_id": "<uuid>",
+  "message": "No response from @botname within 30 seconds."
+}
+```
+
+**Output** (authorization required):
+
+```json
+{
+  "status": "authorization_required",
+  "call_id": "<uuid>",
+  "reason": "Submitting a dispute letter requires access to your ticket record.",
+  "scope": ["tickets.read", "tickets.write"]
+}
+```
+
+**Internal Flow**:
+
+1. Generate a fresh `call_id` (UUID v4).
+2. Resolve the recipient handle (including redirects).
+3. Send a message to the recipient with:
+   - `content_type = "tool_call"`
+   - `call_id` = generated UUID
+   - `body` = JSON-serialized `{ "tool": <tool>, "input": <input> }`
+4. Insert a pending entry into the **invoke-map** keyed by `call_id`, recording the sender, recipient, start time, and timeout value.
+5. Poll the invoke-map for a response entry matching `call_id` until the timeout expires.
+6. If a matching `tool_result` message arrives (routed via `mmp-send` into the invoke-map):
+   - Parse the body and return `status: "success"` with the output.
+7. If a matching `authorization_request` arrives:
+   - Return `status: "authorization_required"` with reason and scope.
+8. If the timeout elapses with no response:
+   - Remove the pending entry and return `status: "timeout"`.
+
+The **invoke-map** is an in-memory (or short-lived) structure that maps `call_id → pending invocation`. When `mmp-send` receives an incoming message with `content_type` of `tool_result`, `authorization_request`, or `authorization_grant`, it checks the invoke-map for a matching `call_id` and resolves the pending invocation.
+
+**Error Cases**:
+
+| Condition             | Error Message                    |
+|-----------------------|----------------------------------|
+| Not authenticated     | `"Authentication required."`     |
+| Recipient not found   | `"User not found."`              |
+| Recipient not a bot   | `"Target is not a bot."`         |
+
+### 13.4 mmp-discover
+
+`mmp-discover` searches registered bot profiles by capability or free-text query.
+
+**Authentication**: Required
+**Visibility**: Model-visible
+
+**Description**: `"Search for bots by capability or keyword. Returns matching bot profiles with their handle, display name, bio, and capabilities list."`
+
+**Input Schema**:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Free-text search query — matched against handle, display_name, bio, and capabilities"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum results to return. Default 10, max 50.",
+      "minimum": 1,
+      "maximum": 50
+    }
+  },
+  "required": ["query"]
+}
+```
+
+**Output** (success):
+
+```json
+{
+  "bots": [
+    {
+      "handle": "nyc_civic",
+      "display_name": "NYC Civic",
+      "bio": "NYC elected reps, votes, and legislation",
+      "capabilities": ["lookup.reps", "votes.search", "legislation.search"],
+      "type": "bot"
+    }
+  ]
+}
+```
+
+**Behavior**:
+
+1. Filter the `users` table to records where `type = "bot"` and the user has not blocked the caller.
+2. Match against `handle`, `display_name`, `bio`, and any element of `capabilities` using a case-insensitive substring or full-text search.
+3. Return up to `limit` matching profiles (default 10).
+4. Respect privacy settings — profiles with `privacy = "private"` are excluded unless the caller is a contact.
+
+**Error Cases**:
+
+| Condition         | Error Message                |
+|-------------------|------------------------------|
+| Not authenticated | `"Authentication required."` |
+
+### 13.5 Authorization Flow
+
+Some bot capabilities require explicit user consent before execution. MMP defines two paths for obtaining authorization.
+
+#### 13.5.1 Path A — OAuth Redirect
+
+The bot responds to the initial `tool_call` with an `authorization_request` message that includes a `redirect_url` field pointing to an external OAuth or consent page. The calling AI presents the URL to the human user, who completes authorization in a browser. On completion, the OAuth provider notifies the bot out-of-band (e.g., via webhook), after which the bot is free to proceed.
+
+`authorization_request` body (Path A):
+
+```json
+{
+  "tool": "tickets.dispute",
+  "reason": "Authorize access to your NYC DOF account to submit dispute letters.",
+  "redirect_url": "https://dispute-bot.example.com/auth?state=<call_id>"
+}
+```
+
+The `state` parameter in the redirect URL SHOULD equal the `call_id` so the bot can correlate the OAuth callback to the pending invocation.
+
+#### 13.5.2 Path B — In-Conversation Grant
+
+The bot sends an `authorization_request` message describing the required scope. The human user reviews the request in their AI client and replies with an `authorization_grant` message (generated by the AI on the user's behalf) containing `granted: true` and the approved scope. The bot receives the grant, validates scope, and proceeds with the operation.
+
+Typical flow:
+
+1. Human calls `mmp-invoke` → bot receives `tool_call`.
+2. Bot requires consent; sends `authorization_request` (same `call_id`) back to the caller.
+3. `mmp-invoke` returns `status: "authorization_required"` to the calling AI.
+4. The AI presents the request to the human user.
+5. The human approves; the AI sends an `authorization_grant` message (same `call_id`) to the bot.
+6. Bot processes the original request and sends `tool_result` (same `call_id`) to the caller.
+7. The caller can poll for the result or handle it when the message arrives in their inbox.
+
+Both paths use the same `call_id` throughout to tie the authorization exchange to the original invocation.
+
+---
+
 ## Appendix A: Database Schema
 
 The reference implementation uses SQLite with the following schema. Compliant implementations MAY use any storage backend that satisfies the data model.
