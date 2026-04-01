@@ -1,5 +1,5 @@
 import type { App } from "@modelcontextprotocol/ext-apps";
-import { navigateTo } from "../inbox-app.js";
+import { navigateTo } from "../navigation.js";
 import { encryptForRecipient } from "../crypto/encrypt.js";
 
 export function renderCompose(

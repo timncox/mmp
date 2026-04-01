@@ -7,22 +7,12 @@ import { renderCompose } from "./views/compose.js";
 import { renderContacts } from "./views/contacts.js";
 import { renderSettings } from "./views/settings.js";
 import { hasClientKeys } from "./crypto/keys.js";
+import { setNavigationCallback } from "./navigation.js";
+import type { ViewName, ViewParams } from "./navigation.js";
 
-// ---------------------------------------------------------------------------
-// View types
-// ---------------------------------------------------------------------------
-export type ViewName =
-  | "onboarding"
-  | "threads"
-  | "thread"
-  | "compose"
-  | "contacts"
-  | "settings";
-
-export interface ViewParams {
-  threadId?: string;
-  recipientHandle?: string;
-}
+// Re-export for any external consumers
+export type { ViewName, ViewParams };
+export { navigateTo } from "./navigation.js";
 
 // ---------------------------------------------------------------------------
 // App state
@@ -74,11 +64,12 @@ function renderView(): void {
   }
 }
 
-export function navigateTo(view: ViewName, params?: ViewParams): void {
+// Register the navigation callback so views can navigate without circular imports
+setNavigationCallback((view, params) => {
   currentView = view;
   viewParams = params ?? {};
   renderView();
-}
+});
 
 // ---------------------------------------------------------------------------
 // Polling for unread messages

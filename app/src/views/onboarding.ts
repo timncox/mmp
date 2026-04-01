@@ -1,6 +1,6 @@
 import type { App } from "@modelcontextprotocol/ext-apps";
 import { generateClientKeyPair, savePrivateKey, savePublicKey } from "../crypto/keys.js";
-import { navigateTo } from "../inbox-app.js";
+import { navigateTo } from "../navigation.js";
 
 function validateHandle(handle: string): string | null {
   if (handle.length < 3 || handle.length > 20) {

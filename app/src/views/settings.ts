@@ -1,5 +1,5 @@
 import type { App } from "@modelcontextprotocol/ext-apps";
-import { navigateTo } from "../inbox-app.js";
+import { navigateTo } from "../navigation.js";
 import { getPublicKey, getPrivateKey } from "../crypto/keys.js";
 
 export function renderSettings(container: HTMLElement, app: App): void {
