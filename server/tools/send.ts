@@ -11,6 +11,7 @@ import {
   deliverToRemote,
   getOrCreateServerIdentity,
 } from "../lib/federation.js";
+import { resolvePending } from "../lib/invoke-map.js";
 
 const attachmentSchema = z.object({
   filename: z.string().describe("Original filename"),
@@ -164,6 +165,20 @@ export function registerSendTool(
           }
 
           db.updateThreadTimestamp(thread_id);
+
+          // Resolve pending invoke for group tool_results
+          if (call_id && (content_type === "tool_result" || content_type === "authorization_request")) {
+            try {
+              const parsedBody = JSON.parse(body || "{}");
+              if (content_type === "tool_result") {
+                resolvePending(call_id, { output: parsedBody.output, error: parsedBody.error });
+              } else {
+                resolvePending(call_id, { authorization: parsedBody });
+              }
+            } catch {
+              // Body wasn't valid JSON — don't resolve
+            }
+          }
 
           // Fire webhooks for all group recipients
           for (const member of recipients) {
@@ -486,6 +501,20 @@ export function registerSendTool(
       }
 
       db.updateThreadTimestamp(threadId);
+
+      // Resolve pending invoke if this is a tool_result or authorization_request
+      if (call_id && (content_type === "tool_result" || content_type === "authorization_request")) {
+        try {
+          const parsedBody = JSON.parse(body || "{}");
+          if (content_type === "tool_result") {
+            resolvePending(call_id, { output: parsedBody.output, error: parsedBody.error });
+          } else {
+            resolvePending(call_id, { authorization: parsedBody });
+          }
+        } catch {
+          // Body wasn't valid JSON — don't resolve
+        }
+      }
 
       // Fire webhook for local DM recipient
       fireWebhook(db, recipient.id, {

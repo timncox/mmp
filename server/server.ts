@@ -34,6 +34,8 @@ import { registerRemoveMemberTool } from "./tools/remove-member.js";
 import { registerRotateKeysTool } from "./tools/rotate-keys.js";
 import { registerSetWebhookTool } from "./tools/set-webhook.js";
 import { registerDownloadTool } from "./tools/download.js";
+import { registerInvokeTool } from "./tools/invoke.js";
+import { registerDiscoverTool } from "./tools/discover.js";
 import { mountFederationRoutes } from "./routes/federation.js";
 import { checkRate } from "./lib/rate-limit.js";
 
@@ -86,6 +88,8 @@ export function createMcpServer(
   registerRotateKeysTool(mcp, db, getUser);
   registerSetWebhookTool(mcp, db, getUser);
   registerDownloadTool(mcp, db, getUser);
+  registerInvokeTool(mcp, db, getUser);
+  registerDiscoverTool(mcp, db, getUser);
 
   return mcp;
 }
