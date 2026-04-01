@@ -188,6 +188,21 @@ export interface KeyEpoch {
   retired_at: number | null;
 }
 
+export interface Reaction {
+  message_id: string;
+  user_id: string;
+  emoji: string;
+  created_at: number;
+}
+
+export interface Flag {
+  id: number;
+  message_id: string;
+  flagged_by: string;
+  reason: string;
+  created_at: number;
+}
+
 export interface ParsedHandle {
   user: string;
   server: string | null;

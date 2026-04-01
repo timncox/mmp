@@ -36,6 +36,8 @@ import { registerSetWebhookTool } from "./tools/set-webhook.js";
 import { registerDownloadTool } from "./tools/download.js";
 import { registerInvokeTool } from "./tools/invoke.js";
 import { registerDiscoverTool } from "./tools/discover.js";
+import { registerReactTool } from "./tools/react.js";
+import { registerFlagTool } from "./tools/flag.js";
 import { mountFederationRoutes } from "./routes/federation.js";
 import { checkRate } from "./lib/rate-limit.js";
 
@@ -90,6 +92,8 @@ export function createMcpServer(
   registerDownloadTool(mcp, db, getUser);
   registerInvokeTool(mcp, db, getUser);
   registerDiscoverTool(mcp, db, getUser);
+  registerReactTool(mcp, db, getUser);
+  registerFlagTool(mcp, db, getUser);
 
   return mcp;
 }

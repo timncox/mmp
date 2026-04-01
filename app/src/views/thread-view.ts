@@ -16,6 +16,8 @@ interface MessageData {
   encryption_mode: string;
   reply_to: string | null;
   created_at: number;
+  content_type?: string;
+  reactions?: { emoji: string; users: string[] }[];
 }
 
 interface ThreadDetail {
@@ -25,7 +27,7 @@ interface ThreadDetail {
   subject: string;
   messages: MessageData[];
   has_more?: boolean;
-  members?: { handle: string; display_name: string; role: string }[];
+  members?: { handle: string; display_name: string; role: string; type?: string }[];
   other_handle?: string;
   other_public_key?: string;
   other_client_public_key?: string;
@@ -365,6 +367,68 @@ export function renderThreadView(
       bubble.className = `message-bubble ${isMine ? "sent" : "received"}`;
       bubble.innerHTML = body ? renderMarkdown(body) : "[Unable to decrypt]";
       msgWrapper.appendChild(bubble);
+
+      // Reaction pills
+      if (msg.reactions && msg.reactions.length > 0) {
+        const reactionsEl = document.createElement("div");
+        reactionsEl.style.cssText = "display:flex;gap:4px;margin-top:2px;flex-wrap:wrap;";
+        msg.reactions.forEach(r => {
+          const pill = document.createElement("button");
+          pill.style.cssText = "background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:2px 8px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:3px;color:inherit;";
+          pill.textContent = `${r.emoji} ${r.users.length}`;
+          pill.title = r.users.map(u => `@${u}`).join(", ");
+          pill.addEventListener("click", async () => {
+            try {
+              await app.callServerTool({ name: "mmp-react", arguments: { message_id: msg.id, emoji: r.emoji } });
+              await loadThread();
+            } catch { /* ignore */ }
+          });
+          reactionsEl.appendChild(pill);
+        });
+        msgWrapper.appendChild(reactionsEl);
+      }
+
+      // Action buttons (show on hover)
+      const actions = document.createElement("div");
+      actions.style.cssText = "display:none;gap:4px;margin-top:2px;";
+
+      // React button
+      const reactBtn = document.createElement("button");
+      reactBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.6;color:inherit;";
+      reactBtn.textContent = "+\u{1F600}";
+      reactBtn.title = "React";
+      reactBtn.addEventListener("click", async () => {
+        const emoji = prompt("Emoji:");
+        if (!emoji) return;
+        try {
+          await app.callServerTool({ name: "mmp-react", arguments: { message_id: msg.id, emoji } });
+          await loadThread();
+        } catch { /* ignore */ }
+      });
+      actions.appendChild(reactBtn);
+
+      // Flag button (only for messages from others)
+      if (!isMine) {
+        const flagBtn = document.createElement("button");
+        flagBtn.style.cssText = "background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;opacity:0.6;color:inherit;";
+        flagBtn.textContent = "\u{1F6A9}";
+        flagBtn.title = "Flag message";
+        flagBtn.addEventListener("click", async () => {
+          const reason = prompt("Why are you flagging this message?") ?? "";
+          try {
+            await app.callServerTool({ name: "mmp-flag", arguments: { message_id: msg.id, reason } });
+            flagBtn.textContent = "\u2705";
+            flagBtn.title = "Flagged";
+          } catch { /* ignore */ }
+        });
+        actions.appendChild(flagBtn);
+      }
+
+      msgWrapper.appendChild(actions);
+
+      // Show actions on hover
+      msgWrapper.addEventListener("mouseenter", () => { actions.style.display = "flex"; });
+      msgWrapper.addEventListener("mouseleave", () => { actions.style.display = "none"; });
 
       messagesEl.appendChild(msgWrapper);
     });

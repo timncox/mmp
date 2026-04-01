@@ -86,6 +86,22 @@ export function registerThreadTool(
       const hasMore = deduped.length > (limit ?? 30);
       const trimmed = hasMore ? deduped.slice(0, limit ?? 30) : deduped;
 
+      const messageIds = trimmed.map(m => m.id);
+      const allReactions = db.getReactionsForMessages(messageIds);
+      const reactionsByMsg = new Map<string, { emoji: string; users: string[] }[]>();
+      for (const r of allReactions) {
+        if (!reactionsByMsg.has(r.message_id)) reactionsByMsg.set(r.message_id, []);
+        const group = reactionsByMsg.get(r.message_id)!;
+        const existing = group.find(g => g.emoji === r.emoji);
+        if (existing) {
+          const u = db.getUserById(r.user_id);
+          existing.users.push(u?.handle ?? "unknown");
+        } else {
+          const u = db.getUserById(r.user_id);
+          group.push({ emoji: r.emoji, users: [u?.handle ?? "unknown"] });
+        }
+      }
+
       const messages = trimmed.map((msg) => {
         const fromUser = db.getUserById(msg.from_user_id);
         const toUser = db.getUserById(msg.to_user_id);
@@ -135,6 +151,7 @@ export function registerThreadTool(
           attachments: attachmentInfo,
           created_at: msg.created_at,
           created_at_iso: new Date(msg.created_at * 1000).toISOString(),
+          reactions: reactionsByMsg.get(msg.id) ?? [],
         };
       });
 

@@ -14,6 +14,8 @@ import type {
   ServerIdentity,
   KeyEpoch,
   Webhook,
+  Reaction,
+  Flag,
 } from "./types.js";
 
 function now(): number {
@@ -113,6 +115,15 @@ export interface Db {
   setWebhook(webhook: Webhook): void;
   getWebhook(userId: string): Webhook | undefined;
   removeWebhook(userId: string): void;
+
+  // Reactions
+  addReaction(messageId: string, userId: string, emoji: string): void;
+  removeReaction(messageId: string, userId: string, emoji: string): void;
+  getReactionsForMessages(messageIds: string[]): Reaction[];
+
+  // Flags
+  flagMessage(messageId: string, flaggedBy: string, reason: string): void;
+  getFlagsForMessage(messageId: string): Flag[];
 
   // Raw access
   raw: Database.Database;
@@ -258,6 +269,22 @@ export function createDb(path: string): Db {
       url TEXT NOT NULL,
       secret TEXT NOT NULL,
       events TEXT NOT NULL DEFAULT 'message.received',
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS reactions (
+      message_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      emoji TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (message_id, user_id, emoji)
+    );
+
+    CREATE TABLE IF NOT EXISTS flags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id TEXT NOT NULL,
+      flagged_by TEXT NOT NULL,
+      reason TEXT NOT NULL DEFAULT '',
       created_at INTEGER NOT NULL
     );
 
@@ -489,6 +516,12 @@ export function createDb(path: string): Db {
     `),
     getWebhook: db.prepare("SELECT * FROM webhooks WHERE user_id = ?"),
     removeWebhook: db.prepare("DELETE FROM webhooks WHERE user_id = ?"),
+
+    addReaction: db.prepare("INSERT OR IGNORE INTO reactions (message_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)"),
+    removeReaction: db.prepare("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?"),
+    getReactionsForMessage: db.prepare("SELECT * FROM reactions WHERE message_id = ?"),
+    flagMessage: db.prepare("INSERT INTO flags (message_id, flagged_by, reason, created_at) VALUES (?, ?, ?, ?)"),
+    getFlagsForMessage: db.prepare("SELECT * FROM flags WHERE message_id = ?"),
 
     findThreadBetweenUsers: db.prepare(`
       SELECT t.* FROM threads t
@@ -809,6 +842,27 @@ export function createDb(path: string): Db {
 
     removeWebhook(userId: string): void {
       stmts.removeWebhook.run(userId);
+    },
+
+    // Reactions
+    addReaction(messageId: string, userId: string, emoji: string): void {
+      stmts.addReaction.run(messageId, userId, emoji, now());
+    },
+    removeReaction(messageId: string, userId: string, emoji: string): void {
+      stmts.removeReaction.run(messageId, userId, emoji);
+    },
+    getReactionsForMessages(messageIds: string[]): Reaction[] {
+      if (messageIds.length === 0) return [];
+      const placeholders = messageIds.map(() => "?").join(",");
+      return db.prepare(`SELECT * FROM reactions WHERE message_id IN (${placeholders})`).all(...messageIds) as Reaction[];
+    },
+
+    // Flags
+    flagMessage(messageId: string, flaggedBy: string, reason: string): void {
+      stmts.flagMessage.run(messageId, flaggedBy, reason, now());
+    },
+    getFlagsForMessage(messageId: string): Flag[] {
+      return stmts.getFlagsForMessage.all(messageId) as Flag[];
     },
 
     // Raw access
